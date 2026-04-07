@@ -64,8 +64,14 @@ void ABaseFPSCharacter::Move(const FInputActionValue& Value)
 
 	if (Controller != nullptr)
 	{
-		AddMovementInput(GetActorForwardVector(), InputAxis.Y);
-		AddMovementInput(GetActorRightVector(), InputAxis.X);
+		const FRotator ControlRotation = Controller->GetControlRotation();
+		const FRotator YawRotation(0.f, ControlRotation.Yaw, 0.f);
+
+		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+
+		AddMovementInput(ForwardDirection, InputAxis.Y);
+		AddMovementInput(RightDirection, InputAxis.X);
 	}
 }
 
