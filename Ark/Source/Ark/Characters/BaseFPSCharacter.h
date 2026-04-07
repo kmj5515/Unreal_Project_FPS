@@ -7,6 +7,9 @@
 
 class UCameraComponent;
 class UInputAction;
+class UAbilitySystemComponent;
+class UFPSAttributeSet;
+struct FOnAttributeChangeData;
 
 UCLASS()
 class ARK_API ABaseFPSCharacter : public ACharacter
@@ -18,6 +21,8 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void PossessedBy(AController* NewController) override;
+	virtual void OnRep_PlayerState() override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	void Move(const FInputActionValue& Value);
@@ -36,4 +41,16 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> JumpAction;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS")
+	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
+
+	void InitializeAbilityActorInfo();
+	void OnMoveSpeedChanged(const FOnAttributeChangeData& ChangeData);
+	void ApplyMoveSpeed(float NewMoveSpeed);
+
+	UPROPERTY()
+	TObjectPtr<UFPSAttributeSet> CachedAttributeSet;
+
+	FDelegateHandle MoveSpeedChangedDelegateHandle;
 };

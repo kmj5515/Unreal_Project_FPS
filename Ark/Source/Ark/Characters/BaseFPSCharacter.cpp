@@ -1,5 +1,8 @@
 #include "BaseFPSCharacter.h"
 
+#include "../Core/FPSPlayerState.h"
+#include "../GAS/FPSAttributeSet.h"
+#include "AbilitySystemComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "EnhancedInputComponent.h"
@@ -31,6 +34,18 @@ ABaseFPSCharacter::ABaseFPSCharacter()
 void ABaseFPSCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+}
+
+void ABaseFPSCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+	InitializeAbilityActorInfo();
+}
+
+void ABaseFPSCharacter::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+	InitializeAbilityActorInfo();
 }
 
 void ABaseFPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -94,4 +109,42 @@ void ABaseFPSCharacter::StartJump()
 void ABaseFPSCharacter::StopJump()
 {
 	StopJumping();
+}
+
+void ABaseFPSCharacter::InitializeAbilityActorInfo()
+{
+	if (AFPSPlayerState* FPSPlayerState = GetPlayerState<AFPSPlayerState>())
+	{
+		AbilitySystemComponent = FPSPlayerState->GetAbilitySystemComponent();
+		CachedAttributeSet = FPSPlayerState->GetAttributeSet();
+		if (AbilitySystemComponent && CachedAttributeSet)
+		{
+			AbilitySystemComponent->InitAbilityActorInfo(FPSPlayerState, this);
+
+			if (MoveSpeedChangedDelegateHandle.IsValid())
+			{
+				AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
+					UFPSAttributeSet::GetMoveSpeedAttribute()).Remove(MoveSpeedChangedDelegateHandle);
+				MoveSpeedChangedDelegateHandle.Reset();
+			}
+
+			MoveSpeedChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
+				UFPSAttributeSet::GetMoveSpeedAttribute()).AddUObject(this, &ABaseFPSCharacter::OnMoveSpeedChanged);
+
+			ApplyMoveSpeed(CachedAttributeSet->GetMoveSpeed());
+		}
+	}
+}
+
+void ABaseFPSCharacter::OnMoveSpeedChanged(const FOnAttributeChangeData& ChangeData)
+{
+	ApplyMoveSpeed(ChangeData.NewValue);
+}
+
+void ABaseFPSCharacter::ApplyMoveSpeed(float NewMoveSpeed)
+{
+	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+	{
+		Movement->MaxWalkSpeed = FMath::Max(0.f, NewMoveSpeed);
+	}
 }
