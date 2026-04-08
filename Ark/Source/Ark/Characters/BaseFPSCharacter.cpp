@@ -160,6 +160,11 @@ void ABaseFPSCharacter::InitializeAbilityActorInfo()
 			MoveSpeedChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
 				UFPSAttributeSet::GetMoveSpeedAttribute()).AddUObject(this, &ABaseFPSCharacter::OnMoveSpeedChanged);
 
+			if (FPSPlayerState->HasAuthority())
+			{
+				FPSPlayerState->TryApplyDefaultAttributes();
+			}
+
 			ApplyMoveSpeed(CachedAttributeSet->GetMoveSpeed());
 		}
 	}

@@ -5,13 +5,12 @@
 
 ## 현재 상태
 
-- 현재 단계: **Phase 2 진행 중**
-- 완료: `Phase 0`, `Phase 1` 골격, GAS 골격(ASC/AttributeSet/이속 연동) 대부분
-- 진행 필요: BP에서 **전신 Skeletal Mesh** 지정(눈 소켓 권장), `GE_DefaultAttributes` 적용
+- 현재 단계: **Phase 3 착수 예정** (Phase 0~2 완료)
+- 완료: 코어/캐릭터 골격, 전신 메쉬+카메라(BP), GAS·`GE_DefaultAttributes`(CurveTable)
 
 ## 빠른 링크
 
-- 개발 로그(날짜별): `docs/DEVLOG/2026-04-07.md`
+- 개발 로그(날짜별): `docs/DEVLOG/2026-04-07.md`, `docs/DEVLOG/2026-04-08.md`
 - 이슈(진행중): `docs/ISSUES/open.md`
 - 이슈(해결됨): `docs/ISSUES/resolved.md`
 
@@ -45,14 +44,14 @@
 ### Phase 1 - 코어/캐릭터 골격
 - [x] `GameMode`, `PlayerController`, `PlayerState` 생성
 - [x] `BaseFPSCharacter` 생성 및 기본 이동/점프/시점 구현
-- [ ] **전신 메쉬** + 카메라: BP `Mesh`에 스켈레탈 지정, `head`(또는 눈 위치) 소켓 있으면 카메라 자동 부착 (없으면 캡슬 오프셋 유지)
+- [x] **전신 메쉬** + 카메라: BP `Mesh`에 스켈레탈 지정, `head`(또는 눈 위치) 소켓 있으면 카메라 자동 부착 (없으면 캡슬 오프셋 유지)
 - [x] 자식 캐릭터 2종(`AgentA`, `AgentB`) 생성
 
 ### Phase 2 - GAS 최소 구성
 - [x] ASC를 `PlayerState`에 생성/소유
 - [x] `AttributeSet` 생성(`Health`, `MaxHealth`, `MoveSpeed`)
 - [x] Possess/Replicate 시점에 `InitAbilityActorInfo` 초기화
-- [ ] `GE_DefaultAttributes` 적용
+- [x] `GE_DefaultAttributes` 적용 (CurveTable 연동 GE, 서버 1회 적용)
 
 ### Phase 3 - 무기 시스템
 - [ ] `WeaponBase` (공통: 장착/해제, 소켓, 데이터 참조)
@@ -88,9 +87,7 @@
 
 ## 다음 작업 (우선순위)
 
-1. BP에서 `ABaseFPSCharacter` **전신 Mesh**·애님·`CameraAttachSocketName`(기본 `head`) 확인
-2. `GE_DefaultAttributes` 적용 및 에디터 에셋 연결
-3. Phase 3: 무기 베이스(권총/칼) C++ 또는 BP
+1. Phase 3: 무기 베이스(권총/칼) C++ 또는 BP, 장착·입력
 
 ## 에셋 준비 리스트 (나중에 확보)
 

@@ -2,6 +2,7 @@
 
 #include "../GAS/FPSAttributeSet.h"
 #include "AbilitySystemComponent.h"
+#include "GameplayEffect.h"
 
 AFPSPlayerState::AFPSPlayerState()
 {
@@ -22,4 +23,26 @@ UAbilitySystemComponent* AFPSPlayerState::GetAbilitySystemComponent() const
 UFPSAttributeSet* AFPSPlayerState::GetAttributeSet() const
 {
 	return AttributeSet;
+}
+
+void AFPSPlayerState::TryApplyDefaultAttributes()
+{
+	if (!HasAuthority() || bDefaultAttributesApplied || !AbilitySystemComponent || !DefaultAttributesEffect)
+	{
+		return;
+	}
+
+	FGameplayEffectContextHandle EffectContext = AbilitySystemComponent->MakeEffectContext();
+	EffectContext.AddSourceObject(this);
+
+	const FGameplayEffectSpecHandle SpecHandle =
+		AbilitySystemComponent->MakeOutgoingSpec(DefaultAttributesEffect, 1.f, EffectContext);
+
+	if (!SpecHandle.IsValid())
+	{
+		return;
+	}
+
+	AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+	bDefaultAttributesApplied = true;
 }

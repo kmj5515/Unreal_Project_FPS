@@ -1,5 +1,12 @@
 # Resolved Issues
 
+## 2026-04-08 - Phase 1 전신 메쉬 + 카메라(BP)
+- BP `Mesh`에 전신 스켈레탈 지정, `head`(또는 `CameraAttachSocketName`) 기준 카메라 부착 확인
+
+## 2026-04-08 - GE_DefaultAttributes (CurveTable) 적용
+- 방식: CurveTable → `GE_DefaultAttributes` → 서버에서 `TryApplyDefaultAttributes()`로 1회 적용
+- 검증: 동작 확인 완료
+
 ## 2026-04-07 - GAS Attribute 확인
 - 검증: 콘솔 `ShowDebug AbilitySystem`
 - 결과: `Health`, `MaxHealth`, `MoveSpeed` 속성 표시 및 반영 확인
