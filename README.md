@@ -7,7 +7,7 @@
 
 - 현재 단계: **Phase 2 진행 중**
 - 완료: `Phase 0`, `Phase 1` 골격, GAS 골격(ASC/AttributeSet/이속 연동) 대부분
-- 진행 필요: 1인칭 팔 메쉬 BP 연결, `GE_DefaultAttributes` 적용
+- 진행 필요: BP에서 **전신 Skeletal Mesh** 지정(눈 소켓 권장), `GE_DefaultAttributes` 적용
 
 ## 빠른 링크
 
@@ -45,7 +45,7 @@
 ### Phase 1 - 코어/캐릭터 골격
 - [x] `GameMode`, `PlayerController`, `PlayerState` 생성
 - [x] `BaseFPSCharacter` 생성 및 기본 이동/점프/시점 구현
-- [ ] 1인칭 카메라 + 팔 메쉬 세팅 (BP에서 Arms Mesh 연결 필요)
+- [ ] **전신 메쉬** + 카메라: BP `Mesh`에 스켈레탈 지정, `head`(또는 눈 위치) 소켓 있으면 카메라 자동 부착 (없으면 캡슬 오프셋 유지)
 - [x] 자식 캐릭터 2종(`AgentA`, `AgentB`) 생성
 
 ### Phase 2 - GAS 최소 구성
@@ -88,7 +88,7 @@
 
 ## 다음 작업 (우선순위)
 
-1. BP에서 `ABaseFPSCharacter` 팔 메쉬 세팅
+1. BP에서 `ABaseFPSCharacter` **전신 Mesh**·애님·`CameraAttachSocketName`(기본 `head`) 확인
 2. `GE_DefaultAttributes` 적용 및 에디터 에셋 연결
 3. Phase 3: 무기 베이스(권총/칼) C++ 또는 BP
 
@@ -98,8 +98,8 @@ Fab / 언리얼 마켓 등에서 살 때 **스켈레톤 호환(리타깅 여부)
 
 ### 1. 캐릭터
 
-- [ ] **전신 메쉬** (3인칭·다른 플레이어에게 보이는 바디)
-- [ ] **1인칭 팔/손 메쉬** (또는 전신과 동일 스켈레톤으로 2컴포넌트 구성 가능한지 확인)
+- [ ] **전신 스켈레탈 메쉬** (본인·상대 모두 동일 `Mesh` — 현재 MVP 방향)
+- [ ] (선택, 나중에) **1인칭 전용 팔 메쉬** 분리 — 레이어·무기 클립 최소화할 때 검토
 - [ ] **스켈레톤·릭** (IK/풋 IK 필요 시 포함 여부)
 - [ ] **기본 애니메이션**: Idle, Walk/Run, Jump, Land
 - [ ] **무기별 상체**: 권총 Hold/ADS/Fire/Reload, 칼 Equip/Slash (몽타주 또는 시퀀스)

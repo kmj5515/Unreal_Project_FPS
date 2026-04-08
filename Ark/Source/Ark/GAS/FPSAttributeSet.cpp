@@ -6,7 +6,7 @@ UFPSAttributeSet::UFPSAttributeSet()
 {
 	InitHealth(100.f);
 	InitMaxHealth(100.f);
-	InitMoveSpeed(500.f);
+	InitMoveSpeed(200.f);
 }
 
 void UFPSAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

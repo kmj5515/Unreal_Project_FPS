@@ -5,6 +5,7 @@
 #include "AbilitySystemComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "EnhancedInputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "InputAction.h"
@@ -34,6 +35,34 @@ ABaseFPSCharacter::ABaseFPSCharacter()
 void ABaseFPSCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+	AttachViewCameraToMesh();
+}
+
+void ABaseFPSCharacter::AttachViewCameraToMesh()
+{
+	if (!FirstPersonCamera)
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	if (!MeshComp || !MeshComp->GetSkeletalMeshAsset())
+	{
+		return;
+	}
+
+	if (!MeshComp->DoesSocketExist(CameraAttachSocketName))
+	{
+		return;
+	}
+
+	FirstPersonCamera->AttachToComponent(
+		MeshComp,
+		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+		CameraAttachSocketName);
+
+	FirstPersonCamera->SetRelativeLocation(CameraSocketOffset);
+	FirstPersonCamera->SetRelativeRotation(CameraSocketRotation);
 }
 
 void ABaseFPSCharacter::PossessedBy(AController* NewController)
@@ -92,7 +121,7 @@ void ABaseFPSCharacter::Move(const FInputActionValue& Value)
 
 void ABaseFPSCharacter::Look(const FInputActionValue& Value)
 {
-	const FVector2D InputAxis = Value.Get<FVector2D>();
+	const FVector2D InputAxis = Value.Get<FVector2D>() * LookSensitivityMultiplier;
 
 	if (Controller != nullptr)
 	{
