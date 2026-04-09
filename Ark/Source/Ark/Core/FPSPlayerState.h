@@ -21,7 +21,6 @@ public:
 
 	UFPSAttributeSet* GetAttributeSet() const;
 
-	/** 스폰 시 1회 적용(서버). 에디터에서 `GE_DefaultAttributes` 등 지정. */
 	void TryApplyDefaultAttributes();
 
 protected:

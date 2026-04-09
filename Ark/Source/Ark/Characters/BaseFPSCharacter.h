@@ -29,6 +29,15 @@ public:
 	ABaseFPSCharacter();
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void RequestEquipWeaponSlot(EFPSWeaponSlot Slot);
+
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void RequestStartFire();
+
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void RequestStopFire();
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void PossessedBy(AController* NewController) override;

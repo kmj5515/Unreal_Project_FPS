@@ -9,7 +9,9 @@
 #include "GameplayEffect.h"
 #include "AbilitySystemComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Logging/LogMacros.h"
 #include "TimerManager.h"
+#include "DrawDebugHelpers.h"
 #include "WeaponDataAsset.h"
 
 AWeaponBase::AWeaponBase()
@@ -86,6 +88,8 @@ void AWeaponBase::StartFire()
 		return;
 	}
 
+	UE_LOG(LogTemp, Log, TEXT("[WeaponFire] StartFire: %s (Slot=%d)"), *GetName(), static_cast<int32>(WeaponSlot));
+
 	bIsFiring = true;
 
 	if (WeaponSlot == EFPSWeaponSlot::Melee)
@@ -141,10 +145,15 @@ void AWeaponBase::FireOnce()
 	FHitResult Hit;
 	if (PerformHitscanTrace(Hit, Start, End) && Hit.GetActor())
 	{
+		UE_LOG(LogTemp, Log, TEXT("[WeaponFire] Hit: %s -> %s"), *GetName(), *Hit.GetActor()->GetName());
 		if (!TryApplyGasDamageFromHit(Hit))
 		{
 			ApplyPointDamageFromHit(Hit);
 		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("[WeaponFire] Miss: %s"), *GetName());
 	}
 }
 
@@ -178,7 +187,39 @@ bool AWeaponBase::PerformHitscanTrace(FHitResult& OutHit, const FVector& Start, 
 		Params.AddIgnoredActor(OwnerCharacter);
 	}
 
-	return GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility, Params);
+	FHitResult VisibilityHit;
+	FHitResult PawnHit;
+	const bool bHitVisibility = GetWorld()->LineTraceSingleByChannel(VisibilityHit, Start, End, ECC_Visibility, Params);
+	const bool bHitPawn = GetWorld()->LineTraceSingleByChannel(PawnHit, Start, End, ECC_Pawn, Params);
+
+	bool bHit = false;
+	if (bHitVisibility && bHitPawn)
+	{
+		const float VisibilityDistSq = FVector::DistSquared(Start, VisibilityHit.ImpactPoint);
+		const float PawnDistSq = FVector::DistSquared(Start, PawnHit.ImpactPoint);
+		OutHit = (PawnDistSq <= VisibilityDistSq) ? PawnHit : VisibilityHit;
+		bHit = true;
+	}
+	else if (bHitPawn)
+	{
+		OutHit = PawnHit;
+		bHit = true;
+	}
+	else if (bHitVisibility)
+	{
+		OutHit = VisibilityHit;
+		bHit = true;
+	}
+
+	if (bDebugDrawTrace)
+	{
+		const FVector DebugEnd = bHit ? OutHit.ImpactPoint : End;
+		const FColor TraceColor = bHit ? FColor::Green : FColor::Red;
+		DrawDebugLine(GetWorld(), Start, DebugEnd, TraceColor, false, DebugDrawDuration, 0, 1.5f);
+		DrawDebugSphere(GetWorld(), DebugEnd, 8.f, 12, TraceColor, false, DebugDrawDuration);
+	}
+
+	return bHit;
 }
 
 void AWeaponBase::ApplyPointDamageFromHit(const FHitResult& Hit)
@@ -232,12 +273,35 @@ void AWeaponBase::PerformMeleeAttack()
 		Shape,
 		Params);
 
+	if (bDebugDrawTrace)
+	{
+		const FVector DebugEnd = bHit ? Hit.ImpactPoint : End;
+		const FColor TraceColor = bHit ? FColor::Green : FColor::Red;
+		DrawDebugCapsule(
+			GetWorld(),
+			(Start + End) * 0.5f,
+			FVector::Distance(Start, End) * 0.5f,
+			MeleeRadius,
+			FQuat::FindBetweenNormals(FVector::UpVector, (End - Start).GetSafeNormal()),
+			TraceColor,
+			false,
+			DebugDrawDuration,
+			0,
+			1.2f);
+		DrawDebugSphere(GetWorld(), DebugEnd, 10.f, 12, TraceColor, false, DebugDrawDuration);
+	}
+
 	if (bHit && Hit.GetActor())
 	{
+		UE_LOG(LogTemp, Log, TEXT("[WeaponMelee] Hit: %s -> %s"), *GetName(), *Hit.GetActor()->GetName());
 		if (!TryApplyGasDamageFromHit(Hit))
 		{
 			ApplyPointDamageFromHit(Hit);
 		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("[WeaponMelee] Miss: %s"), *GetName());
 	}
 }
 
@@ -288,10 +352,13 @@ bool AWeaponBase::TryApplyGasDamageFromHit(const FHitResult& Hit)
 		return false;
 	}
 
-	if (DamageSetByCallerTag.IsValid())
+	if (!DamageSetByCallerTag.IsValid())
 	{
-		SpecHandle.Data->SetSetByCallerMagnitude(DamageSetByCallerTag, Damage);
+		UE_LOG(LogTemp, Error, TEXT("[WeaponDamage] DamageSetByCallerTag is not set on %s"), *GetName());
+		return false;
 	}
+
+	SpecHandle.Data->SetSetByCallerMagnitude(DamageSetByCallerTag, Damage);
 
 	SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
 	return true;

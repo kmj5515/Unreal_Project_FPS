@@ -10,7 +10,7 @@
 
 ## 빠른 링크
 
-- 개발 로그(날짜별): `docs/DEVLOG/2026-04-07.md`, `docs/DEVLOG/2026-04-08.md`
+- 개발 로그(날짜별): `docs/DEVLOG/2026-04-07.md`, `docs/DEVLOG/2026-04-08.md`, `docs/DEVLOG/2026-04-09.md`
 - 이슈(진행중): `docs/ISSUES/open.md`
 - 이슈(해결됨): `docs/ISSUES/resolved.md`
 
@@ -66,13 +66,16 @@
 - [x] 에디터에서 `GE_Damage` 에셋 생성/연결 (`Data.Damage` SetByCaller 사용)
 - [x] 코드 기반 데이터 분리: `WeaponDataAsset` + Native Tag(`Data.Damage`) 도입
 - [x] 에디터에서 `DA_Weapon_Rifle/Pistol/Knife` 생성 후 각 무기 BP에 `WeaponData` 할당
+- [x] Trace 디버그 시각화 옵션 추가 (`bDebugDrawTrace`, `DebugDrawDuration`)
+- [x] 히트스캔 판정 보강: `Visibility + Pawn` 동시 트레이스 후 가까운 히트 선택
 
 ### Phase 4 - 전투 액션 (GAS)
-- [ ] `GA_WeaponEquip` (또는 장착 전용 Ability)
-- [ ] `GA_WeaponFirePistol` — 서버 권한 판정 + 탄약(있다면) 소비
-- [ ] `GA_WeaponAttackKnife` — 서버 근접 판정
+- [x] `GA_WeaponEquip` C++ 스캐폴딩
+- [x] `GA_WeaponFireRifle` C++ 스캐폴딩
+- [x] `GA_WeaponFirePistol` C++ 스캐폴딩 (1회 발사 형태)
+- [x] `GA_WeaponAttackKnife` C++ 스캐폴딩 (근접 1회 발사 형태)
 - [x] `GE_Damage` 수용 코드: `Damage` Attribute → `Health` 반영 파이프라인 구현
-- [ ] GameplayTag: `State.Attacking`, `State.Reloading` 등 충돌 방지
+- [x] GameplayTag(`State.Attacking`, `State.Reloading`) NativeTag 추가 + Ability 충돌 방지 기본 적용
 - [ ] 피격 피드백(선택): 카메라/사운드는 클라, 데미지는 서버
 
 ### Phase 5 - 애니메이션 / 동기화
@@ -80,20 +83,21 @@
 - [ ] 권총: Fire / Reload / Equip 몽타주 연결
 - [ ] 칼: Equip / Melee 몽타주 연결
 - [ ] Ability 타이밍과 몽타주(Notify) 정렬
-- [ ] 멀티: 원격 플레이어 무기·상태가 보이도록 애님/복제 점검
+- [ ] 멀티: 원격 플레이어 무기·상태가 보이도록 애님/복제 점검 (복제 기본은 완료, 애님 시각화 검증 남음)
 - [ ] (에셋 있으면) MuzzleFlash·히트 이펙트 스폰 위치 정리
 
 ### Phase 6 - 데이터 분리 / 밸런싱
-- [ ] 무기별 `DataAsset` 또는 `DataTable` (데미지, 연사, 사거리, 탄창 등)
-- [ ] 캐릭터별 기본 스탯 테이블 (에이전트 A/B)
-- [ ] `GE_DefaultAttributes`를 데이터 기반으로만 채우도록 정리
-- [ ] 코드 수정 없이 수치 조정 가능한지 한 번 검증
+- [x] 무기별 `DataAsset` 또는 `DataTable` (현재: `WeaponDataAsset` 적용)
 
 ## 다음 작업 (우선순위)
 
-1. 에디터: `GE_Damage` 생성/세팅(SetByCaller: `Data.Damage`) + 무기 BP에 연결
-2. 에디터: `DA_Weapon_Rifle/Pistol/Knife` 생성 후 수치/GE를 각 무기 BP `WeaponData`에 연결
-3. 2인 PIE 검증: 클라 발사 → 서버 판정 → Health 감소(`ShowDebug AbilitySystem`)
+1. 2인 PIE 검증: 클라 발사/근접 공격 → 서버 판정 → `Health` 감소 (`ShowDebug AbilitySystem`)
+2. `GA_WeaponReload` + `IA_Reload` 추가, `State.Reloading` 실제 리로드 흐름 연결
+3. Phase 5 착수: 원격 플레이어 무기 상태 + 애니메이션 시각화 동기화
+
+## 나중 작업 메모
+
+- [ ] 언리얼 에디터 기반 `DPS` 측정 툴 제작 (무기별 평균 DPS/유효 사거리/명중률 기반 비교)
 
 ## 에셋 준비 리스트 (나중에 확보)
 
@@ -111,9 +115,9 @@ Fab / 언리얼 마켓 등에서 살 때 **스켈레톤 호환(리타깅 여부)
 
 ### 2. Weapon
 
-- [ ] **권총** 스태틱 또는 스켈레탈 메쉬 (손/그립 소켓에 맞는지)
-- [ ] **칼(근접)** 메쉬
-- [ ] **무기 소켓 이름** 문서화 (`HandGrip_R` 등 프로젝트 표준으로 통일)
+- [x] **권총** 스태틱 또는 스켈레탈 메쉬 (손/그립 소켓에 맞는지)
+- [x] **칼(근접)** 메쉬
+- [x] **무기 소켓 이름** 문서화 (`Weapon` 등 프로젝트 표준으로 통일)
 - [ ] **발사/재장전/검집** 애니메이션 (권총)
 - [ ] **근접 스윙** 애니메이션 (칼)
 - [ ] **사운드**: 발사, 재장전, 빈 탄, 근접 스윙/히트 (선택)

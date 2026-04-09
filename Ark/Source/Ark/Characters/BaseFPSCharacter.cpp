@@ -34,6 +34,21 @@ ABaseFPSCharacter::ABaseFPSCharacter()
 	FirstPersonCamera->bUsePawnControlRotation = true;
 }
 
+void ABaseFPSCharacter::RequestEquipWeaponSlot(EFPSWeaponSlot Slot)
+{
+	EquipWeaponBySlot(Slot);
+}
+
+void ABaseFPSCharacter::RequestStartFire()
+{
+	HandleFireStarted();
+}
+
+void ABaseFPSCharacter::RequestStopFire()
+{
+	HandleFireStopped();
+}
+
 void ABaseFPSCharacter::BeginPlay()
 {
 	Super::BeginPlay();

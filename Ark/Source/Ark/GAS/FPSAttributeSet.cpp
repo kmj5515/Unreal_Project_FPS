@@ -4,9 +4,9 @@
 
 UFPSAttributeSet::UFPSAttributeSet()
 {
-	InitHealth(100.f);
-	InitMaxHealth(100.f);
-	InitMoveSpeed(200.f);
+	InitHealth(0.f);
+	InitMaxHealth(1.f);
+	InitMoveSpeed(0.f);
 	InitDamage(0.f);
 }
 
@@ -69,7 +69,17 @@ void UFPSAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbac
 	else if (Data.EvaluatedData.Attribute == GetMaxHealthAttribute())
 	{
 		SetMaxHealth(FMath::Max(1.f, GetMaxHealth()));
-		SetHealth(FMath::Clamp(GetHealth(), 0.f, GetMaxHealth()));
+		const float CurrentHealth = GetHealth();
+		// During initial default-attribute application, Health can be clamped to 1
+		// before MaxHealth is updated. Promote it to full health once MaxHealth is valid.
+		if (CurrentHealth <= 1.f)
+		{
+			SetHealth(GetMaxHealth());
+		}
+		else
+		{
+			SetHealth(FMath::Clamp(CurrentHealth, 0.f, GetMaxHealth()));
+		}
 	}
 	else if (Data.EvaluatedData.Attribute == GetMoveSpeedAttribute())
 	{

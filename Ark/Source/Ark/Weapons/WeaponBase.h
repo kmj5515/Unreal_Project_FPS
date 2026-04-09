@@ -75,6 +75,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Data")
 	TObjectPtr<UWeaponDataAsset> WeaponData;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Debug")
+	bool bDebugDrawTrace = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Debug", meta = (ClampMin = "0.0"))
+	float DebugDrawDuration = 1.0f;
+
 	bool bIsFiring = false;
 	FTimerHandle RefireTimerHandle;
 };
