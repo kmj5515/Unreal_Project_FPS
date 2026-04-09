@@ -2,6 +2,7 @@
 
 #include "../Core/FPSPlayerState.h"
 #include "../GAS/FPSAttributeSet.h"
+#include "../Weapons/WeaponBase.h"
 #include "AbilitySystemComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -9,6 +10,7 @@
 #include "EnhancedInputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "InputAction.h"
+#include "Net/UnrealNetwork.h"
 
 ABaseFPSCharacter::ABaseFPSCharacter()
 {
@@ -36,6 +38,12 @@ void ABaseFPSCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	AttachViewCameraToMesh();
+
+	if (HasAuthority())
+	{
+		SpawnDefaultLoadout();
+		EquipWeaponBySlot(EFPSWeaponSlot::Primary);
+	}
 }
 
 void ABaseFPSCharacter::AttachViewCameraToMesh()
@@ -99,6 +107,27 @@ void ABaseFPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 			EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ABaseFPSCharacter::StartJump);
 			EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ABaseFPSCharacter::StopJump);
 		}
+
+		if (FireAction)
+		{
+			EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &ABaseFPSCharacter::HandleFireStarted);
+			EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &ABaseFPSCharacter::HandleFireStopped);
+		}
+
+		if (EquipPrimaryAction)
+		{
+			EnhancedInputComponent->BindAction(EquipPrimaryAction, ETriggerEvent::Started, this, &ABaseFPSCharacter::HandleEquipPrimary);
+		}
+
+		if (EquipSecondaryAction)
+		{
+			EnhancedInputComponent->BindAction(EquipSecondaryAction, ETriggerEvent::Started, this, &ABaseFPSCharacter::HandleEquipSecondary);
+		}
+
+		if (EquipMeleeAction)
+		{
+			EnhancedInputComponent->BindAction(EquipMeleeAction, ETriggerEvent::Started, this, &ABaseFPSCharacter::HandleEquipMelee);
+		}
 	}
 }
 
@@ -138,6 +167,43 @@ void ABaseFPSCharacter::StartJump()
 void ABaseFPSCharacter::StopJump()
 {
 	StopJumping();
+}
+
+void ABaseFPSCharacter::HandleEquipPrimary()
+{
+	EquipWeaponBySlot(EFPSWeaponSlot::Primary);
+}
+
+void ABaseFPSCharacter::HandleEquipSecondary()
+{
+	EquipWeaponBySlot(EFPSWeaponSlot::Secondary);
+}
+
+void ABaseFPSCharacter::HandleEquipMelee()
+{
+	EquipWeaponBySlot(EFPSWeaponSlot::Melee);
+}
+
+void ABaseFPSCharacter::HandleFireStarted()
+{
+	if (HasAuthority())
+	{
+		ServerSetFiring(true);
+		return;
+	}
+
+	ServerSetFiring(true);
+}
+
+void ABaseFPSCharacter::HandleFireStopped()
+{
+	if (HasAuthority())
+	{
+		ServerSetFiring(false);
+		return;
+	}
+
+	ServerSetFiring(false);
 }
 
 void ABaseFPSCharacter::InitializeAbilityActorInfo()
@@ -181,4 +247,131 @@ void ABaseFPSCharacter::ApplyMoveSpeed(float NewMoveSpeed)
 	{
 		Movement->MaxWalkSpeed = FMath::Max(0.f, NewMoveSpeed);
 	}
+}
+
+void ABaseFPSCharacter::SpawnDefaultLoadout()
+{
+	auto SpawnWeapon = [this](TSubclassOf<AWeaponBase> WeaponClass, EFPSWeaponSlot Slot) -> AWeaponBase*
+	{
+		if (!WeaponClass)
+		{
+			return nullptr;
+		}
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		SpawnParams.Instigator = this;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+		AWeaponBase* SpawnedWeapon = GetWorld()->SpawnActor<AWeaponBase>(WeaponClass, GetActorTransform(), SpawnParams);
+		if (SpawnedWeapon)
+		{
+			SpawnedWeapon->InitializeWeapon(this, Slot);
+		}
+
+		return SpawnedWeapon;
+	};
+
+	PrimaryWeapon = SpawnWeapon(PrimaryWeaponClass, EFPSWeaponSlot::Primary);
+	SecondaryWeapon = SpawnWeapon(SecondaryWeaponClass, EFPSWeaponSlot::Secondary);
+	MeleeWeapon = SpawnWeapon(MeleeWeaponClass, EFPSWeaponSlot::Melee);
+}
+
+void ABaseFPSCharacter::EquipWeaponBySlot(EFPSWeaponSlot Slot)
+{
+	if (!HasAuthority())
+	{
+		ServerEquipWeapon(Slot);
+		return;
+	}
+
+	AWeaponBase* WeaponToEquip = nullptr;
+	switch (Slot)
+	{
+	case EFPSWeaponSlot::Primary:
+		WeaponToEquip = PrimaryWeapon;
+		break;
+	case EFPSWeaponSlot::Secondary:
+		WeaponToEquip = SecondaryWeapon;
+		break;
+	case EFPSWeaponSlot::Melee:
+		WeaponToEquip = MeleeWeapon;
+		break;
+	default:
+		break;
+	}
+
+	if (!WeaponToEquip)
+	{
+		return;
+	}
+
+	if (CurrentWeapon == WeaponToEquip)
+	{
+		return;
+	}
+
+	if (CurrentWeapon)
+	{
+		CurrentWeapon->OnUnequipped();
+	}
+
+	CurrentWeapon = WeaponToEquip;
+	CurrentWeaponSlot = Slot;
+	CurrentWeapon->OnEquipped(WeaponAttachSocketName);
+	ApplyCurrentWeaponVisibility();
+}
+
+void ABaseFPSCharacter::ApplyCurrentWeaponVisibility()
+{
+	AWeaponBase* AllWeapons[] = { PrimaryWeapon, SecondaryWeapon, MeleeWeapon };
+	for (AWeaponBase* Weapon : AllWeapons)
+	{
+		if (!Weapon)
+		{
+			continue;
+		}
+
+		const bool bIsCurrent = (Weapon == CurrentWeapon);
+		Weapon->SetActorHiddenInGame(!bIsCurrent);
+		Weapon->SetActorEnableCollision(bIsCurrent);
+	}
+}
+
+void ABaseFPSCharacter::ServerEquipWeapon_Implementation(EFPSWeaponSlot Slot)
+{
+	EquipWeaponBySlot(Slot);
+}
+
+void ABaseFPSCharacter::ServerSetFiring_Implementation(bool bNewFiring)
+{
+	if (!CurrentWeapon)
+	{
+		return;
+	}
+
+	if (bNewFiring)
+	{
+		CurrentWeapon->StartFire();
+	}
+	else
+	{
+		CurrentWeapon->StopFire();
+	}
+}
+
+void ABaseFPSCharacter::OnRep_CurrentWeapon()
+{
+	ApplyCurrentWeaponVisibility();
+}
+
+void ABaseFPSCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ABaseFPSCharacter, PrimaryWeapon);
+	DOREPLIFETIME(ABaseFPSCharacter, SecondaryWeapon);
+	DOREPLIFETIME(ABaseFPSCharacter, MeleeWeapon);
+	DOREPLIFETIME(ABaseFPSCharacter, CurrentWeapon);
+	DOREPLIFETIME(ABaseFPSCharacter, CurrentWeaponSlot);
 }

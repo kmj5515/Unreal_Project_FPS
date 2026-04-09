@@ -54,14 +54,15 @@
 - [x] `GE_DefaultAttributes` 적용 (CurveTable 연동 GE, 서버 1회 적용)
 
 ### Phase 3 - 무기 시스템
-- [ ] `WeaponBase` (공통: 장착/해제, 소켓, 데이터 참조)
-- [ ] `WeaponPistol` / `WeaponKnife` 파생 또는 BP
-- [ ] 캐릭터 슬롯: 권총·칼 보유 및 `CurrentWeapon` 전환
-- [ ] 입력: 장착 전환(`IA_EquipPistol` 등) → 실제 장착 로직 연결
-- [ ] 1P/3P(또는 원격용) 메쉬 부착 규칙 정리 (소켓 이름 통일)
-- [ ] 네트워크: 무기 액터/장착 상태 복제 또는 RPC 설계
-- [ ] 권총: 히트스캔 또는 투사체 중 하나로 MVP 확정 후 구현
-- [ ] 칼: 근접 Trace 범위·쿨다운·방향(카메라 기준) 정리
+- [x] `WeaponBase` (공통: 장착/해제, 소켓 부착, 발사 인터페이스)
+- [x] 무기 파생 클래스 생성: `RifleWeapon`, `PistolWeapon`, `KnifeWeapon`
+- [x] 캐릭터 3슬롯: `Primary(라이플)`, `Secondary(권총)`, `Melee(칼)` + `CurrentWeapon` 전환/복제
+- [x] 입력 라우팅 준비: `FireAction`, `EquipPrimaryAction`, `EquipSecondaryAction`, `EquipMeleeAction`
+- [x] 서버 권한 전환/발사: `ServerEquipWeapon`, `ServerSetFiring`
+- [x] 에디터 세팅: 캐릭터 BP에서 `PrimaryWeaponClass/SecondaryWeaponClass/MeleeWeaponClass` 할당
+- [x] 소켓: `WeaponAttachSocketName` 기본값은 `WeaponSocket` (스켈레톤/메쉬 소켓 이름과 일치 필요)
+- [x] 실제 전투 MVP 구현(서버 권한): 라이플/권총=히트스캔(LineTrace), 칼=근접 Sweep(Sphere)
+- [ ] (다음) 데미지 적용을 UE 기본 Damage → GAS `GE_Damage`로 전환
 
 ### Phase 4 - 전투 액션 (GAS)
 - [ ] `GA_WeaponEquip` (또는 장착 전용 Ability)
@@ -87,7 +88,9 @@
 
 ## 다음 작업 (우선순위)
 
-1. Phase 3: 무기 베이스(권총/칼) C++ 또는 BP, 장착·입력
+1. UE 기본 Damage로 맞는지 2인 PIE로 최종 확인(클라에서 발사 → 서버 판정)
+2. 데미지 적용을 GAS로 전환: `GE_Damage` + 태그/이벤트 구조 잡기
+3. 이펙트(선택): MuzzleFlash/Hit effect 위치 기준(소켓) 확정
 
 ## 에셋 준비 리스트 (나중에 확보)
 

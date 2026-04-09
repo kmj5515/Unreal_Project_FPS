@@ -1,0 +1,67 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "../Characters/BaseFPSCharacter.h"
+#include "WeaponBase.generated.h"
+
+class USkeletalMeshComponent;
+class ABaseFPSCharacter;
+class UWorld;
+
+UCLASS()
+class ARK_API AWeaponBase : public AActor
+{
+	GENERATED_BODY()
+
+public:
+	AWeaponBase();
+
+	void InitializeWeapon(ABaseFPSCharacter* InOwnerCharacter, EFPSWeaponSlot InSlot);
+	void OnEquipped(const FName& AttachSocketName);
+	void OnUnequipped();
+
+	virtual void StartFire();
+	virtual void StopFire();
+
+protected:
+	virtual void BeginPlay() override;
+
+	void FireOnce();
+	bool GetAimStartEnd(FVector& OutStart, FVector& OutEnd) const;
+	bool PerformHitscanTrace(FHitResult& OutHit, const FVector& Start, const FVector& End) const;
+	void ApplyPointDamageFromHit(const FHitResult& Hit);
+
+	/** 근접 공격(칼). Owner 시점 기준 Sweep. */
+	void PerformMeleeAttack();
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<USkeletalMeshComponent> WeaponMesh;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<ABaseFPSCharacter> OwnerCharacter;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	EFPSWeaponSlot WeaponSlot = EFPSWeaponSlot::Primary;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Stats", meta = (ClampMin = "0.0"))
+	float Damage = 25.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Stats", meta = (ClampMin = "0.0", Units = "cm"))
+	float Range = 10000.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Stats", meta = (ClampMin = "0.01", Units = "s"))
+	float RefireRate = 0.12f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Stats")
+	bool bFullAuto = true;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Melee", meta = (ClampMin = "0.0", Units = "cm"))
+	float MeleeRange = 160.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Melee", meta = (ClampMin = "0.0", Units = "cm"))
+	float MeleeRadius = 25.f;
+
+	bool bIsFiring = false;
+	FTimerHandle RefireTimerHandle;
+};
