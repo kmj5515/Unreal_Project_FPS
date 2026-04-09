@@ -5,8 +5,8 @@
 
 ## 현재 상태
 
-- 현재 단계: **Phase 3 착수 예정** (Phase 0~2 완료)
-- 완료: 코어/캐릭터 골격, 전신 메쉬+카메라(BP), GAS·`GE_DefaultAttributes`(CurveTable)
+- 현재 단계: **Phase 3 진행 중**
+- 완료: 코어/캐릭터 골격, 전신 메쉬+카메라(BP), GAS·`GE_DefaultAttributes`(CurveTable), 무기 3슬롯 스캐폴딩
 
 ## 빠른 링크
 
@@ -62,13 +62,16 @@
 - [x] 에디터 세팅: 캐릭터 BP에서 `PrimaryWeaponClass/SecondaryWeaponClass/MeleeWeaponClass` 할당
 - [x] 소켓: `WeaponAttachSocketName` 기본값은 `WeaponSocket` (스켈레톤/메쉬 소켓 이름과 일치 필요)
 - [x] 실제 전투 MVP 구현(서버 권한): 라이플/권총=히트스캔(LineTrace), 칼=근접 Sweep(Sphere)
-- [ ] (다음) 데미지 적용을 UE 기본 Damage → GAS `GE_Damage`로 전환
+- [x] 데미지 적용 GAS 경로 추가: 무기에서 `GE_Damage` 우선 적용 (없으면 UE PointDamage fallback)
+- [x] 에디터에서 `GE_Damage` 에셋 생성/연결 (`Data.Damage` SetByCaller 사용)
+- [x] 코드 기반 데이터 분리: `WeaponDataAsset` + Native Tag(`Data.Damage`) 도입
+- [x] 에디터에서 `DA_Weapon_Rifle/Pistol/Knife` 생성 후 각 무기 BP에 `WeaponData` 할당
 
 ### Phase 4 - 전투 액션 (GAS)
 - [ ] `GA_WeaponEquip` (또는 장착 전용 Ability)
 - [ ] `GA_WeaponFirePistol` — 서버 권한 판정 + 탄약(있다면) 소비
 - [ ] `GA_WeaponAttackKnife` — 서버 근접 판정
-- [ ] `GE_Damage` — 체력 감소, `Health` Attribute와 연동
+- [x] `GE_Damage` 수용 코드: `Damage` Attribute → `Health` 반영 파이프라인 구현
 - [ ] GameplayTag: `State.Attacking`, `State.Reloading` 등 충돌 방지
 - [ ] 피격 피드백(선택): 카메라/사운드는 클라, 데미지는 서버
 
@@ -88,9 +91,9 @@
 
 ## 다음 작업 (우선순위)
 
-1. UE 기본 Damage로 맞는지 2인 PIE로 최종 확인(클라에서 발사 → 서버 판정)
-2. 데미지 적용을 GAS로 전환: `GE_Damage` + 태그/이벤트 구조 잡기
-3. 이펙트(선택): MuzzleFlash/Hit effect 위치 기준(소켓) 확정
+1. 에디터: `GE_Damage` 생성/세팅(SetByCaller: `Data.Damage`) + 무기 BP에 연결
+2. 에디터: `DA_Weapon_Rifle/Pistol/Knife` 생성 후 수치/GE를 각 무기 BP `WeaponData`에 연결
+3. 2인 PIE 검증: 클라 발사 → 서버 판정 → Health 감소(`ShowDebug AbilitySystem`)
 
 ## 에셋 준비 리스트 (나중에 확보)
 

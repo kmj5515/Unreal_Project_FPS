@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "GameFramework/Actor.h"
 #include "../Characters/BaseFPSCharacter.h"
 #include "WeaponBase.generated.h"
@@ -8,6 +9,8 @@
 class USkeletalMeshComponent;
 class ABaseFPSCharacter;
 class UWorld;
+class UGameplayEffect;
+class UWeaponDataAsset;
 
 UCLASS()
 class ARK_API AWeaponBase : public AActor
@@ -26,13 +29,14 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	void ApplyWeaponDataFromAsset();
 
 	void FireOnce();
 	bool GetAimStartEnd(FVector& OutStart, FVector& OutEnd) const;
 	bool PerformHitscanTrace(FHitResult& OutHit, const FVector& Start, const FVector& End) const;
 	void ApplyPointDamageFromHit(const FHitResult& Hit);
+	bool TryApplyGasDamageFromHit(const FHitResult& Hit);
 
-	/** 근접 공격(칼). Owner 시점 기준 Sweep. */
 	void PerformMeleeAttack();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
@@ -46,6 +50,12 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Stats", meta = (ClampMin = "0.0"))
 	float Damage = 25.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Damage")
+	TSubclassOf<UGameplayEffect> DamageGameplayEffect;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Damage")
+	FGameplayTag DamageSetByCallerTag;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Stats", meta = (ClampMin = "0.0", Units = "cm"))
 	float Range = 10000.f;
@@ -61,6 +71,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Melee", meta = (ClampMin = "0.0", Units = "cm"))
 	float MeleeRadius = 25.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Data")
+	TObjectPtr<UWeaponDataAsset> WeaponData;
 
 	bool bIsFiring = false;
 	FTimerHandle RefireTimerHandle;

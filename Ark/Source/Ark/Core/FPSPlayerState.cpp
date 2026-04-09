@@ -12,7 +12,7 @@ AFPSPlayerState::AFPSPlayerState()
 
 	AttributeSet = CreateDefaultSubobject<UFPSAttributeSet>(TEXT("AttributeSet"));
 
-	NetUpdateFrequency = 100.f;
+	SetNetUpdateFrequency(100.f);
 }
 
 UAbilitySystemComponent* AFPSPlayerState::GetAbilitySystemComponent() const

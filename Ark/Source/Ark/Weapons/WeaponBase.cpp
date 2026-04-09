@@ -1,16 +1,22 @@
 #include "WeaponBase.h"
 
+#include "../Core/FPSPlayerState.h"
+#include "../GAS/FPSGameplayTags.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
+#include "GameplayEffect.h"
+#include "AbilitySystemComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
+#include "WeaponDataAsset.h"
 
 AWeaponBase::AWeaponBase()
 {
 	bReplicates = true;
 	PrimaryActorTick.bCanEverTick = false;
+	DamageSetByCallerTag = FPSGameplayTags::Data_Damage;
 
 	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
 	RootComponent = WeaponMesh;
@@ -20,6 +26,27 @@ AWeaponBase::AWeaponBase()
 void AWeaponBase::BeginPlay()
 {
 	Super::BeginPlay();
+	ApplyWeaponDataFromAsset();
+}
+
+void AWeaponBase::ApplyWeaponDataFromAsset()
+{
+	if (!WeaponData)
+	{
+		return;
+	}
+
+	Damage = WeaponData->Damage;
+	Range = WeaponData->Range;
+	RefireRate = WeaponData->RefireRate;
+	bFullAuto = WeaponData->bFullAuto;
+	MeleeRange = WeaponData->MeleeRange;
+	MeleeRadius = WeaponData->MeleeRadius;
+
+	if (WeaponData->DamageGameplayEffect)
+	{
+		DamageGameplayEffect = WeaponData->DamageGameplayEffect;
+	}
 }
 
 void AWeaponBase::InitializeWeapon(ABaseFPSCharacter* InOwnerCharacter, EFPSWeaponSlot InSlot)
@@ -49,7 +76,6 @@ void AWeaponBase::OnUnequipped()
 
 void AWeaponBase::StartFire()
 {
-	// Server authority only (we call this via ServerSetFiring)
 	if (!HasAuthority())
 	{
 		return;
@@ -62,7 +88,6 @@ void AWeaponBase::StartFire()
 
 	bIsFiring = true;
 
-	// Knife: treat as single action per press (no hold auto-fire)
 	if (WeaponSlot == EFPSWeaponSlot::Melee)
 	{
 		FireOnce();
@@ -116,7 +141,10 @@ void AWeaponBase::FireOnce()
 	FHitResult Hit;
 	if (PerformHitscanTrace(Hit, Start, End) && Hit.GetActor())
 	{
-		ApplyPointDamageFromHit(Hit);
+		if (!TryApplyGasDamageFromHit(Hit))
+		{
+			ApplyPointDamageFromHit(Hit);
+		}
 	}
 }
 
@@ -206,6 +234,65 @@ void AWeaponBase::PerformMeleeAttack()
 
 	if (bHit && Hit.GetActor())
 	{
-		ApplyPointDamageFromHit(Hit);
+		if (!TryApplyGasDamageFromHit(Hit))
+		{
+			ApplyPointDamageFromHit(Hit);
+		}
 	}
+}
+
+bool AWeaponBase::TryApplyGasDamageFromHit(const FHitResult& Hit)
+{
+	if (!DamageGameplayEffect || !OwnerCharacter || !Hit.GetActor())
+	{
+		return false;
+	}
+
+	AFPSPlayerState* SourcePS = OwnerCharacter->GetPlayerState<AFPSPlayerState>();
+	if (!SourcePS)
+	{
+		return false;
+	}
+
+	UAbilitySystemComponent* SourceASC = SourcePS->GetAbilitySystemComponent();
+	if (!SourceASC)
+	{
+		return false;
+	}
+
+	APawn* HitPawn = Cast<APawn>(Hit.GetActor());
+	if (!HitPawn)
+	{
+		return false;
+	}
+
+	AFPSPlayerState* TargetPS = HitPawn->GetPlayerState<AFPSPlayerState>();
+	if (!TargetPS)
+	{
+		return false;
+	}
+
+	UAbilitySystemComponent* TargetASC = TargetPS->GetAbilitySystemComponent();
+	if (!TargetASC)
+	{
+		return false;
+	}
+
+	FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
+	EffectContext.AddSourceObject(this);
+	EffectContext.AddHitResult(Hit);
+
+	const FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(DamageGameplayEffect, 1.f, EffectContext);
+	if (!SpecHandle.IsValid())
+	{
+		return false;
+	}
+
+	if (DamageSetByCallerTag.IsValid())
+	{
+		SpecHandle.Data->SetSetByCallerMagnitude(DamageSetByCallerTag, Damage);
+	}
+
+	SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
+	return true;
 }
