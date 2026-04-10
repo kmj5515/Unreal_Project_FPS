@@ -18,6 +18,8 @@
 #include "DrawDebugHelpers.h"
 #include "Particles/ParticleSystem.h"
 #include "WeaponDataAsset.h"
+#include "Engine/StaticMeshActor.h"
+#include "Engine/StaticMesh.h"
 
 AWeaponBase::AWeaponBase()
 {
@@ -59,6 +61,14 @@ void AWeaponBase::ApplyWeaponDataFromAsset()
 	{
 		MuzzleFlashParticle = WeaponData->MuzzleFlashParticle;
 	}
+
+	if (WeaponData->ShellEjectStaticMesh)
+	{
+		ShellEjectStaticMesh = WeaponData->ShellEjectStaticMesh;
+	}
+
+	ShellLifeSpan = FMath::Max(0.f, WeaponData->ShellLifeSpan);
+	ShellImpulseStrength = FMath::Max(0.f, WeaponData->ShellImpulseStrength);
 
 	if (WeaponData->FireSound)
 	{
@@ -321,12 +331,15 @@ void AWeaponBase::Multicast_PlayMuzzleFlash_Implementation()
 		return;
 	}
 
-	if (!WeaponMesh || MuzzleSocketName == NAME_None || !WeaponMesh->DoesSocketExist(MuzzleSocketName))
+	if (!WeaponMesh)
 	{
 		return;
 	}
 
-	if (MuzzleFlashParticle)
+	const bool bHasMuzzleSocket = (MuzzleSocketName != NAME_None && WeaponMesh->DoesSocketExist(MuzzleSocketName));
+	const bool bHasAmmoEjectSocket = (AmmoEjectSocketName != NAME_None && WeaponMesh->DoesSocketExist(AmmoEjectSocketName));
+
+	if (MuzzleFlashParticle && bHasMuzzleSocket)
 	{
 		UGameplayStatics::SpawnEmitterAttached(
 			MuzzleFlashParticle,
@@ -339,7 +352,35 @@ void AWeaponBase::Multicast_PlayMuzzleFlash_Implementation()
 			true);
 	}
 
-	if (FireSound)
+	if (ShellEjectStaticMesh && bHasAmmoEjectSocket)
+	{
+		const FTransform ShellSpawnTransform = WeaponMesh->GetSocketTransform(AmmoEjectSocketName, ERelativeTransformSpace::RTS_World);
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+		if (AStaticMeshActor* ShellActor = GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), ShellSpawnTransform, SpawnParams))
+		{
+			if (UStaticMeshComponent* ShellMeshComp = ShellActor->GetStaticMeshComponent())
+			{
+				ShellMeshComp->SetMobility(EComponentMobility::Movable);
+				ShellMeshComp->SetStaticMesh(ShellEjectStaticMesh);
+				ShellMeshComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+				ShellMeshComp->SetSimulatePhysics(true);
+
+				const FVector EjectDirection =
+					(WeaponMesh->GetSocketRotation(AmmoEjectSocketName).RotateVector(FVector::RightVector) + FVector::UpVector * 0.3f)
+					.GetSafeNormal();
+				ShellMeshComp->AddImpulse(EjectDirection * ShellImpulseStrength, NAME_None, true);
+			}
+
+			if (ShellLifeSpan > 0.f)
+			{
+				ShellActor->SetLifeSpan(ShellLifeSpan);
+			}
+		}
+	}
+
+	if (FireSound && bHasMuzzleSocket)
 	{
 		UGameplayStatics::SpawnSoundAttached(
 			FireSound,

@@ -14,6 +14,7 @@ class UWeaponDataAsset;
 class UParticleSystem;
 class USoundBase;
 class UAnimMontage;
+class UStaticMesh;
 
 UCLASS()
 class ARK_API AWeaponBase : public AActor
@@ -113,8 +114,20 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Trace")
 	FName MuzzleSocketName = FName(TEXT("MuzzleFlash"));
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Trace")
+	FName AmmoEjectSocketName = FName(TEXT("AmmoEject"));
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|FX")
 	TObjectPtr<UParticleSystem> MuzzleFlashParticle;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|FX")
+	TObjectPtr<UStaticMesh> ShellEjectStaticMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|FX", meta = (ClampMin = "0.0", Units = "s"))
+	float ShellLifeSpan = 5.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|FX", meta = (ClampMin = "0.0"))
+	float ShellImpulseStrength = 120.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|FX", meta = (ClampMin = "0.01"))
 	float MuzzleFlashScale = 1.f;

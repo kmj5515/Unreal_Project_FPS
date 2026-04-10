@@ -8,6 +8,7 @@ class UGameplayEffect;
 class UParticleSystem;
 class USoundBase;
 class UAnimMontage;
+class UStaticMesh;
 
 UCLASS(BlueprintType)
 class ARK_API UWeaponDataAsset : public UDataAsset
@@ -41,6 +42,15 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|FX")
 	TObjectPtr<UParticleSystem> MuzzleFlashParticle;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|FX")
+	TObjectPtr<UStaticMesh> ShellEjectStaticMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|FX", meta = (ClampMin = "0.0", Units = "s"))
+	float ShellLifeSpan = 5.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|FX", meta = (ClampMin = "0.0"))
+	float ShellImpulseStrength = 120.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|SFX")
 	TObjectPtr<USoundBase> FireSound;
