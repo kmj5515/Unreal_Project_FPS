@@ -33,6 +33,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bCrouching = false;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Combat")
+	bool bDead = false;
+
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	TObjectPtr<ACharacter> OwningCharacter;

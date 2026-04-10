@@ -9,6 +9,7 @@ class UCameraComponent;
 class UInputAction;
 class UAbilitySystemComponent;
 class UFPSAttributeSet;
+class UAnimMontage;
 class AWeaponBase;
 struct FOnAttributeChangeData;
 
@@ -37,6 +38,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void RequestStopFire();
+
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	bool IsDead() const { return bDead; }
+
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	UAnimMontage* GetDeathMontage() const { return DeathMontage; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -100,6 +107,8 @@ protected:
 
 	void InitializeAbilityActorInfo();
 	void OnMoveSpeedChanged(const FOnAttributeChangeData& ChangeData);
+	void OnHealthChanged(const FOnAttributeChangeData& ChangeData);
+	void HandleDeathFromAuthority();
 	void ApplyMoveSpeed(float NewMoveSpeed);
 	void AttachViewCameraToMesh();
 	void SpawnDefaultLoadout();
@@ -112,8 +121,14 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerSetFiring(bool bNewFiring);
 
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_OnDeath();
+
 	UFUNCTION()
 	void OnRep_CurrentWeapon();
+
+	UFUNCTION()
+	void OnRep_Dead();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
 	FName WeaponAttachSocketName = FName(TEXT("Weapon"));
@@ -142,8 +157,15 @@ protected:
 	UPROPERTY(Replicated)
 	EFPSWeaponSlot CurrentWeaponSlot = EFPSWeaponSlot::Primary;
 
+	UPROPERTY(ReplicatedUsing = OnRep_Dead, BlueprintReadOnly, Category = "Combat")
+	bool bDead = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat")
+	TObjectPtr<UAnimMontage> DeathMontage;
+
 	UPROPERTY()
 	TObjectPtr<UFPSAttributeSet> CachedAttributeSet;
 
 	FDelegateHandle MoveSpeedChangedDelegateHandle;
+	FDelegateHandle HealthChangedDelegateHandle;
 };

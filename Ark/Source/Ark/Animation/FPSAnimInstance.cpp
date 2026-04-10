@@ -1,5 +1,6 @@
 #include "FPSAnimInstance.h"
 
+#include "../Characters/BaseFPSCharacter.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "KismetAnimationLibrary.h"
@@ -20,6 +21,24 @@ void UFPSAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	}
 
 	if (!OwningCharacter)
+	{
+		Speed = 0.0f;
+		Direction = 0.0f;
+		bJumping = false;
+		bEnableJump = false;
+		bJumpPressed = false;
+		bCrouching = false;
+		bDead = false;
+		return;
+	}
+
+	bDead = false;
+	if (const ABaseFPSCharacter* FPSChar = Cast<ABaseFPSCharacter>(OwningCharacter))
+	{
+		bDead = FPSChar->IsDead();
+	}
+
+	if (bDead)
 	{
 		Speed = 0.0f;
 		Direction = 0.0f;

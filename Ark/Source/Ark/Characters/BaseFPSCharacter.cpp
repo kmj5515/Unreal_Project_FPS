@@ -2,13 +2,17 @@
 
 #include "../Core/FPSPlayerState.h"
 #include "../GAS/FPSAttributeSet.h"
+#include "../GAS/FPSGameplayTags.h"
 #include "../Weapons/WeaponBase.h"
 #include "AbilitySystemComponent.h"
+#include "Animation/AnimInstance.h"
+#include "Animation/AnimMontage.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "EnhancedInputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/PlayerController.h"
 #include "InputAction.h"
 #include "Net/UnrealNetwork.h"
 
@@ -38,16 +42,28 @@ ABaseFPSCharacter::ABaseFPSCharacter()
 
 void ABaseFPSCharacter::RequestEquipWeaponSlot(EFPSWeaponSlot Slot)
 {
+	if (bDead)
+	{
+		return;
+	}
 	EquipWeaponBySlot(Slot);
 }
 
 void ABaseFPSCharacter::RequestStartFire()
 {
+	if (bDead)
+	{
+		return;
+	}
 	HandleFireStarted();
 }
 
 void ABaseFPSCharacter::RequestStopFire()
 {
+	if (bDead)
+	{
+		return;
+	}
 	HandleFireStopped();
 }
 
@@ -156,6 +172,11 @@ void ABaseFPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 
 void ABaseFPSCharacter::Move(const FInputActionValue& Value)
 {
+	if (bDead)
+	{
+		return;
+	}
+
 	const FVector2D InputAxis = Value.Get<FVector2D>();
 
 	if (Controller != nullptr)
@@ -173,6 +194,11 @@ void ABaseFPSCharacter::Move(const FInputActionValue& Value)
 
 void ABaseFPSCharacter::Look(const FInputActionValue& Value)
 {
+	if (bDead)
+	{
+		return;
+	}
+
 	const FVector2D InputAxis = Value.Get<FVector2D>() * LookSensitivityMultiplier;
 
 	if (Controller != nullptr)
@@ -184,41 +210,73 @@ void ABaseFPSCharacter::Look(const FInputActionValue& Value)
 
 void ABaseFPSCharacter::StartJump()
 {
+	if (bDead)
+	{
+		return;
+	}
 	Jump();
 }
 
 void ABaseFPSCharacter::StopJump()
 {
+	if (bDead)
+	{
+		return;
+	}
 	StopJumping();
 }
 
 void ABaseFPSCharacter::HandleEquipPrimary()
 {
+	if (bDead)
+	{
+		return;
+	}
 	EquipWeaponBySlot(EFPSWeaponSlot::Primary);
 }
 
 void ABaseFPSCharacter::HandleEquipSecondary()
 {
+	if (bDead)
+	{
+		return;
+	}
 	EquipWeaponBySlot(EFPSWeaponSlot::Secondary);
 }
 
 void ABaseFPSCharacter::HandleEquipMelee()
 {
+	if (bDead)
+	{
+		return;
+	}
 	EquipWeaponBySlot(EFPSWeaponSlot::Melee);
 }
 
 void ABaseFPSCharacter::HandleCrouchStarted()
 {
+	if (bDead)
+	{
+		return;
+	}
 	Crouch();
 }
 
 void ABaseFPSCharacter::HandleCrouchStopped()
 {
+	if (bDead)
+	{
+		return;
+	}
 	UnCrouch();
 }
 
 void ABaseFPSCharacter::HandleFireStarted()
 {
+	if (bDead)
+	{
+		return;
+	}
 	if (HasAuthority())
 	{
 		ServerSetFiring(true);
@@ -230,6 +288,10 @@ void ABaseFPSCharacter::HandleFireStarted()
 
 void ABaseFPSCharacter::HandleFireStopped()
 {
+	if (bDead)
+	{
+		return;
+	}
 	if (HasAuthority())
 	{
 		ServerSetFiring(false);
@@ -259,6 +321,16 @@ void ABaseFPSCharacter::InitializeAbilityActorInfo()
 			MoveSpeedChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
 				UFPSAttributeSet::GetMoveSpeedAttribute()).AddUObject(this, &ABaseFPSCharacter::OnMoveSpeedChanged);
 
+			if (HealthChangedDelegateHandle.IsValid())
+			{
+				AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
+					UFPSAttributeSet::GetHealthAttribute()).Remove(HealthChangedDelegateHandle);
+				HealthChangedDelegateHandle.Reset();
+			}
+
+			HealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
+				UFPSAttributeSet::GetHealthAttribute()).AddUObject(this, &ABaseFPSCharacter::OnHealthChanged);
+
 			if (FPSPlayerState->HasAuthority())
 			{
 				FPSPlayerState->TryApplyDefaultAttributes();
@@ -267,6 +339,80 @@ void ABaseFPSCharacter::InitializeAbilityActorInfo()
 			ApplyMoveSpeed(CachedAttributeSet->GetMoveSpeed());
 		}
 	}
+}
+
+void ABaseFPSCharacter::OnHealthChanged(const FOnAttributeChangeData& ChangeData)
+{
+	if (bDead)
+	{
+		return;
+	}
+
+	if (ChangeData.NewValue > 0.f || ChangeData.OldValue <= 0.f)
+	{
+		return;
+	}
+
+	if (HasAuthority())
+	{
+		HandleDeathFromAuthority();
+	}
+}
+
+void ABaseFPSCharacter::HandleDeathFromAuthority()
+{
+	if (bDead || !HasAuthority())
+	{
+		return;
+	}
+
+	bDead = true;
+
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->AddLooseGameplayTag(FPSGameplayTags::State_Dead.GetTag());
+		AbilitySystemComponent->CancelAllAbilities();
+	}
+
+	if (CurrentWeapon)
+	{
+		CurrentWeapon->StopFire();
+	}
+
+	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+	{
+		Movement->StopMovementImmediately();
+		Movement->DisableMovement();
+	}
+
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		DisableInput(PC);
+		PC->SetIgnoreMoveInput(true);
+		PC->SetIgnoreLookInput(true);
+	}
+
+	Multicast_OnDeath();
+}
+
+void ABaseFPSCharacter::Multicast_OnDeath_Implementation()
+{
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		if (IsLocallyControlled())
+		{
+			MeshComp->SetVisibility(true, true);
+		}
+
+		if (DeathMontage && MeshComp->GetAnimInstance())
+		{
+			MeshComp->GetAnimInstance()->Montage_Play(DeathMontage, 1.f);
+		}
+	}
+}
+
+void ABaseFPSCharacter::OnRep_Dead()
+{
 }
 
 void ABaseFPSCharacter::OnMoveSpeedChanged(const FOnAttributeChangeData& ChangeData)
@@ -312,6 +458,11 @@ void ABaseFPSCharacter::SpawnDefaultLoadout()
 
 void ABaseFPSCharacter::EquipWeaponBySlot(EFPSWeaponSlot Slot)
 {
+	if (bDead)
+	{
+		return;
+	}
+
 	if (!HasAuthority())
 	{
 		ServerEquipWeapon(Slot);
@@ -373,11 +524,20 @@ void ABaseFPSCharacter::ApplyCurrentWeaponVisibility()
 
 void ABaseFPSCharacter::ServerEquipWeapon_Implementation(EFPSWeaponSlot Slot)
 {
+	if (bDead)
+	{
+		return;
+	}
 	EquipWeaponBySlot(Slot);
 }
 
 void ABaseFPSCharacter::ServerSetFiring_Implementation(bool bNewFiring)
 {
+	if (bDead)
+	{
+		return;
+	}
+
 	if (!CurrentWeapon)
 	{
 		return;
@@ -407,4 +567,5 @@ void ABaseFPSCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME(ABaseFPSCharacter, MeleeWeapon);
 	DOREPLIFETIME(ABaseFPSCharacter, CurrentWeapon);
 	DOREPLIFETIME(ABaseFPSCharacter, CurrentWeaponSlot);
+	DOREPLIFETIME(ABaseFPSCharacter, bDead);
 }

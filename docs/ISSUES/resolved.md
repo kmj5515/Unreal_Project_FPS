@@ -1,5 +1,15 @@
 # Resolved Issues
 
+## 2026-04-11 - 멀티에서 피격자 본인 화면에 사망 몽타주가 안 보임
+- 증상: 클라 A가 클라 B를 죽일 때 A 화면(또는 B의 원격 표현)에서는 사망 몽타주가 보이나, **B 본인 클라 화면**에서는 안 보임
+- 원인: 1P용으로 **전신 `Mesh`**에 **`Owner No See`**(또는 숨김)를 쓰면, `Multicast_OnDeath`에서 `GetMesh()`에 몽타주를 재생해도 **소유 클라에서는 메쉬가 렌더되지 않음**
+- 해결: `Multicast_OnDeath`에서 **`IsLocallyControlled()`**이면 `Mesh`에 `SetOwnerNoSee(false)`, `SetVisibility(true, true)` 적용(필요 시 **Capsule**도 `SetVisibility`). 리스폰 시 새 폰이면 BP 기본값으로 다시 숨김 처리됨; 동일 폰 부활 시에는 가시성·`OwnerNoSee`를 다시 맞출 것
+
+## 2026-04-11 - 사망 몽타주 종료 후 Idle로 돌아감
+- 증상: 사망 몽타주가 끝나면 슬롯이 비워져 기본 로코모션(Idle)이 다시 보임
+- 원인: 몽타주 기본 동작이 블렌드 아웃 후 슬롯 가중치를 0으로 되돌리기 때문
+- 해결: **에디터**에서 사망 몽타주 에셋의 **Enable Auto Blend Out** 끄기, 또는 AnimBP에서 `bDead` 등으로 사망 포즈 레이어 유지(프로젝트는 에디터 설정으로 처리)
+
 ## 2026-04-10 - 앉기(Crouch) 입력은 되는데 동작 안 함
 - 증상: `Crouch()` 호출 시 `CanEverCrouch=0`, `LogCharacter: ... crouching is disabled on this character! (check CharacterMovement NavAgentSettings)`
 - 원인: 캐릭터 BP의 **Character Movement → Nav Agent**에서 **`Can Crouch`**가 꺼져 있어 `CanEverCrouch()`가 false. C++ 생성자에서 켠 값이 BP 컴포넌트 기본값에 덮임
