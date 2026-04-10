@@ -37,6 +37,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Weapon|Ammo")
 	int32 GetCurrentAmmoInMagazine() const { return AmmoInMagazine; }
 
+	UFUNCTION(BlueprintPure, Category = "Weapon|Ammo")
+	int32 GetMagazineSize() const { return MagazineSize; }
+
 protected:
 	virtual void BeginPlay() override;
 	void ApplyWeaponDataFromAsset();
@@ -60,12 +63,18 @@ protected:
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_OnReloadFinished();
 
+	UFUNCTION()
+	void OnRep_AmmoInMagazine();
+
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<USkeletalMeshComponent> WeaponMesh;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	UFUNCTION()
+	void OnRep_OwnerCharacter();
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon", ReplicatedUsing = OnRep_OwnerCharacter)
 	TObjectPtr<ABaseFPSCharacter> OwnerCharacter;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
@@ -127,6 +136,6 @@ protected:
 	FTimerHandle ReloadTimerHandle;
 	FTimerHandle RefireTimerHandle;
 
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing = OnRep_AmmoInMagazine)
 	int32 AmmoInMagazine = 15;
 };

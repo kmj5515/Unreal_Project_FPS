@@ -12,6 +12,10 @@ class UFPSAttributeSet;
 class UAnimMontage;
 class AWeaponBase;
 struct FOnAttributeChangeData;
+class UFPSHUDWidget;
+
+DECLARE_MULTICAST_DELEGATE_TwoParams(FFPSHUDHealthChangedSignature, float, float);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FFPSHUDAmmoChangedSignature, int32, int32);
 
 UENUM(BlueprintType)
 enum class EFPSWeaponSlot : uint8
@@ -50,6 +54,23 @@ public:
 
 	void NotifyReloadStarted();
 	void NotifyReloadFinished();
+	void NotifyAmmoChanged();
+	void NotifyAmmoChangedValues(int32 CurrentInMag, int32 InMagSize);
+
+	UFUNCTION(BlueprintPure, Category = "HUD")
+	float GetHealthCurrent() const;
+
+	UFUNCTION(BlueprintPure, Category = "HUD")
+	float GetHealthMax() const;
+
+	UFUNCTION(BlueprintPure, Category = "HUD")
+	int32 GetAmmoInMag() const;
+
+	UFUNCTION(BlueprintPure, Category = "HUD")
+	int32 GetMagSize() const;
+
+	FFPSHUDHealthChangedSignature& OnHUDHealthChanged() { return HUDHealthChanged; }
+	FFPSHUDAmmoChangedSignature& OnHUDAmmoChanged() { return HUDAmmoChanged; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -118,6 +139,8 @@ protected:
 	void InitializeAbilityActorInfo();
 	void OnMoveSpeedChanged(const FOnAttributeChangeData& ChangeData);
 	void OnHealthChanged(const FOnAttributeChangeData& ChangeData);
+	void BroadcastHUDHealth();
+	void BroadcastHUDAmmo();
 	void HandleDeathFromAuthority();
 	void ApplyMoveSpeed(float NewMoveSpeed);
 	void AttachViewCameraToMesh();
@@ -142,6 +165,12 @@ protected:
 
 	UFUNCTION()
 	void OnRep_Dead();
+
+	UFUNCTION()
+	void OnRep_HUDAmmoInMag();
+
+	UFUNCTION()
+	void OnRep_HUDMagSize();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
 	FName WeaponAttachSocketName = FName(TEXT("Weapon"));
@@ -173,6 +202,12 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_Dead, BlueprintReadOnly, Category = "Combat")
 	bool bDead = false;
 
+	UPROPERTY(ReplicatedUsing = OnRep_HUDAmmoInMag)
+	int32 HUDAmmoInMag = 0;
+
+	UPROPERTY(ReplicatedUsing = OnRep_HUDMagSize)
+	int32 HUDMagSize = 0;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat")
 	TObjectPtr<UAnimMontage> DeathMontage;
 
@@ -181,4 +216,6 @@ protected:
 
 	FDelegateHandle MoveSpeedChangedDelegateHandle;
 	FDelegateHandle HealthChangedDelegateHandle;
+	FFPSHUDHealthChangedSignature HUDHealthChanged;
+	FFPSHUDAmmoChangedSignature HUDAmmoChanged;
 };

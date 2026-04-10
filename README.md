@@ -6,8 +6,9 @@
 ## 현재 상태
 
 - 현재 단계: **Phase 3·4 MVP 수준 + 사망 기본 로직**, **Phase 5(애니·동기화) 진행 전**
-- 완료: 코어/캐릭터, 전신 메쉬+카메라(BP), GAS·기본 스탯·데미지 파이프라인, 무기 3슬롯·히트스캔/근접, Enhanced Input(이동·앉기 등), `FPSAnimInstance` 기본 변수·`bDead`
-- **사망(기본):** `Health` ≤ 0 → 서버에서 `State.Dead`, 어빌리티 취소·이동/입력 차단, **Reliable `Multicast_OnDeath`**로 `DeathMontage` 재생. **로컬 피격자**는 전신 메쉬가 `Owner No See` 등으로 숨겨져 있을 수 있어, `IsLocallyControlled()`일 때 메쉬(`SetOwnerNoSee(false)`·`SetVisibility`)·캡슐 가시성 보강
+- 완료: 코어/캐릭터, 전신 메쉬+카메라(BP), GAS·기본 스탯·데미지 파이프라인, 무기 3슬롯·히트스캔/근접, Enhanced Input(이동·앉기 등), `FPSAnimInstance` 기본 변수·`bDead`, HUD 위젯(체력/탄약 텍스트) 이벤트 기반 갱신
+- **사망(기본):** `Health` ≤ 0 → 서버에서 `State.Dead`, 어빌리티 취소·이동/입력 차단, **Reliable `Multicast_OnDeath`**로 `DeathMontage` 재생
+- **HUD/탄약 동기화(정리):** 다중 클라에서 간헐적으로 Ammo `0/0`이 뜨던 문제는 **무기 이벤트 의존**을 줄이고, 캐릭터 복제 필드(`HUDAmmoInMag`, `HUDMagSize`) + `OnRep` 재브로드캐스트로 안정화
 - **남은 MVP 성격 작업:** 리스폰·매치 규칙 등 **사망 이후** 흐름, 원격 애니/상태 동기화(Phase 5). **사운드는 MVP 이후** 단계적으로 추가 예정
 
 ## 빠른 링크
@@ -50,6 +51,7 @@
 - [x] 자식 캐릭터 2종(`AgentA`, `AgentB`) 생성
 - [x] 앉기: `IA_Crouch` → `CrouchAction`, `Started`/`Completed`로 `Crouch`/`UnCrouch` (hold). **BP Character Movement → Nav Agent → `Can Crouch`** 켜거나, 코드 `BeginPlay`에서 `NavAgentProps.bCanCrouch` 보강
 - [x] `FPSAnimInstance`: `Speed`/`Direction`, `bCrouching`, `bJumping`, `bJumpPressed`, `bEnableJump`
+- [x] `FPSPlayerController` 로컬 HUD 위젯 생성/`AddToViewport` + Pawn 재소유(`OnPossess`/`OnRep_Pawn`) 시 재바인딩
 
 ### MVP 마무리 (이후 Phase 5와 연결)
 - [x] **사망(기본):** `Health` ≤ 0 → `State.Dead`·입력/이동·발사 차단·`Multicast_OnDeath` 몽타주·로컬 메쉬 가시성(피격자 본인 화면). **몽타주 끝난 뒤 Idle 복귀 방지** 등은 에디터(예: 몽타주 **Enable Auto Blend Out** 끄기)에서 조정
@@ -83,17 +85,20 @@
 - [x] `GA_WeaponFireRifle` C++ 스캐폴딩
 - [x] `GA_WeaponFirePistol` C++ 스캐폴딩 (1회 발사 형태)
 - [x] `GA_WeaponAttackKnife` C++ 스캐폴딩 (근접 1회 발사 형태)
+- [x] `GA_WeaponReload` C++ 스캐폴딩 + `IA_Reload` 입력 경로 연결
 - [x] `GE_Damage` 수용 코드: `Damage` Attribute → `Health` 반영 파이프라인 구현
 - [x] GameplayTag(`State.Attacking`, `State.Reloading`) NativeTag 추가 + Ability 충돌 방지 기본 적용
+- [x] HUD 동기화: 체력/탄약 텍스트를 Tick 없이 이벤트 기반(`OnHUDHealthChanged`, `OnHUDAmmoChanged`)으로 갱신
+- [x] 탄약 복제 보강: `AmmoInMagazine`/`OwnerCharacter` `OnRep` + 캐릭터 HUD 전용 복제 필드(`HUDAmmoInMag`, `HUDMagSize`)로 초기값(`00`) 및 다중 클라 `0/0` 누락 없이 HUD 갱신
 - [ ] 피격 피드백(선택): 카메라/사운드는 클라, 데미지는 서버
 
 ### Phase 5 - 애니메이션 / 동기화
 - [ ] ABP: 하체 로코모션 + 상체 레이어(또는 슬롯) 구조
-- [ ] 권총: Fire / Reload / Equip 몽타주 연결
+- [~] 권총: Fire / Reload / Equip 몽타주 연결 (`Reload`는 코드 멀티캐스트/태그 연결 완료, ABP 슬롯·가시성 검증 남음)
 - [ ] 칼: Equip / Melee 몽타주 연결
 - [ ] Ability 타이밍과 몽타주(Notify) 정렬
 - [ ] 멀티: 원격 플레이어 무기·상태가 보이도록 애님/복제 점검 (복제 기본은 완료, 애님 시각화 검증 남음)
-- [ ] **사운드 (추가 예정):** 무기(발사·재장전·빈 탄·근접), 캐릭터(발소리·점프/착지·피격·사망), UI는 이후 단계 — `MetaSound`/`SoundCue`, `Attenuation`, 멀티에서 재생 주체(로컬/서버) 정리
+- [~] **사운드:** 무기 발사 사운드(`FireSound`)는 발사 FX 멀티캐스트에 연동 완료. 재장전/빈 탄/근접·캐릭터·UI는 추가 예정
 - [x] MuzzleFlash·히트 이펙트 스폰 위치 정리
 
 ### Phase 6 - 데이터 분리 / 밸런싱
@@ -103,8 +108,9 @@
 
 1. **사망 이후:** 리스폰(ASC `State.Dead` 해제·체력 회복)·관전·UI 등 프로젝트 규칙에 맞게 확장
 2. **Phase 5:** 원격 플레이어 **애니메이션·무기·상태** 동기화(남은 “기본 로직”의 핵심)
-3. (선택) `GA_WeaponReload` + `IA_Reload`, `State.Reloading` 실제 리로드 연결
-4. **사운드:** 무기·캐릭터·환경·UI 순으로 에셋 확보 및 재생 훅 연결 (상세는 Phase 5 항목·아래 에셋 리스트)
+3. **리로드 시각화 안정화:** 로컬/원격 모두에서 Reload 몽타주가 동일하게 보이도록 ABP 슬롯·메쉬 가시성 구조 정리
+4. **HUD 회귀 테스트:** 체력/탄약 텍스트의 초기화·리스폰·무기 교체·다중 클라(3인+) 시점 검증
+5. **사운드:** 무기·캐릭터·환경·UI 순으로 에셋 확보 및 재생 훅 확장 (`FireSound` 이후 재장전/빈 탄/근접 추가)
 
 ## 나중 작업 메모
 

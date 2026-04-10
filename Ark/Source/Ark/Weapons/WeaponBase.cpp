@@ -92,6 +92,8 @@ void AWeaponBase::OnEquipped(const FName& AttachSocketName)
 		OwnerCharacter->GetMesh(),
 		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
 		AttachSocketName);
+
+	OwnerCharacter->NotifyAmmoChangedValues(AmmoInMagazine, MagazineSize);
 }
 
 void AWeaponBase::OnUnequipped()
@@ -236,6 +238,10 @@ void AWeaponBase::FireOnce()
 
 	Multicast_PlayMuzzleFlash();
 	AmmoInMagazine = FMath::Max(0, AmmoInMagazine - 1);
+	if (OwnerCharacter)
+	{
+		OwnerCharacter->NotifyAmmoChangedValues(AmmoInMagazine, MagazineSize);
+	}
 
 	FHitResult Hit;
 	if (PerformHitscanTrace(Hit, Start, End) && Hit.GetActor())
@@ -261,6 +267,10 @@ void AWeaponBase::FinishReload()
 
 	bIsReloading = false;
 	AmmoInMagazine = MagazineSize;
+	if (OwnerCharacter)
+	{
+		OwnerCharacter->NotifyAmmoChangedValues(AmmoInMagazine, MagazineSize);
+	}
 	Multicast_OnReloadFinished();
 	if (OwnerCharacter)
 	{
@@ -567,5 +577,22 @@ bool AWeaponBase::TryApplyGasDamageFromHit(const FHitResult& Hit)
 void AWeaponBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AWeaponBase, OwnerCharacter);
 	DOREPLIFETIME(AWeaponBase, AmmoInMagazine);
+}
+
+void AWeaponBase::OnRep_AmmoInMagazine()
+{
+	if (OwnerCharacter)
+	{
+		OwnerCharacter->NotifyAmmoChangedValues(AmmoInMagazine, MagazineSize);
+	}
+}
+
+void AWeaponBase::OnRep_OwnerCharacter()
+{
+	if (OwnerCharacter)
+	{
+		OwnerCharacter->NotifyAmmoChangedValues(AmmoInMagazine, MagazineSize);
+	}
 }

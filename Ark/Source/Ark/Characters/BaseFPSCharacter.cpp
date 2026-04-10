@@ -361,12 +361,16 @@ void ABaseFPSCharacter::InitializeAbilityActorInfo()
 			}
 
 			ApplyMoveSpeed(CachedAttributeSet->GetMoveSpeed());
+			BroadcastHUDHealth();
+			BroadcastHUDAmmo();
 		}
 	}
 }
 
 void ABaseFPSCharacter::OnHealthChanged(const FOnAttributeChangeData& ChangeData)
 {
+	BroadcastHUDHealth();
+
 	if (bDead)
 	{
 		return;
@@ -403,6 +407,7 @@ void ABaseFPSCharacter::HandleDeathFromAuthority()
 		CurrentWeapon->StopFire();
 	}
 	NotifyReloadFinished();
+	BroadcastHUDHealth();
 
 	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
 	{
@@ -529,6 +534,7 @@ void ABaseFPSCharacter::EquipWeaponBySlot(EFPSWeaponSlot Slot)
 	CurrentWeaponSlot = Slot;
 	CurrentWeapon->OnEquipped(WeaponAttachSocketName);
 	ApplyCurrentWeaponVisibility();
+	BroadcastHUDAmmo();
 }
 
 void ABaseFPSCharacter::ApplyCurrentWeaponVisibility()
@@ -613,9 +619,76 @@ void ABaseFPSCharacter::NotifyReloadFinished()
 	AbilitySystemComponent->RemoveLooseGameplayTag(FPSGameplayTags::State_Reloading.GetTag());
 }
 
+void ABaseFPSCharacter::NotifyAmmoChanged()
+{
+	BroadcastHUDAmmo();
+}
+
+void ABaseFPSCharacter::NotifyAmmoChangedValues(int32 CurrentInMag, int32 InMagSize)
+{
+	const int32 NewAmmo = FMath::Max(0, CurrentInMag);
+	const int32 NewMagSize = FMath::Max(0, InMagSize);
+
+	if (HasAuthority())
+	{
+		HUDAmmoInMag = NewAmmo;
+		HUDMagSize = NewMagSize;
+	}
+
+	HUDAmmoChanged.Broadcast(NewAmmo, NewMagSize);
+}
+
+float ABaseFPSCharacter::GetHealthCurrent() const
+{
+	return CachedAttributeSet ? CachedAttributeSet->GetHealth() : 0.f;
+}
+
+float ABaseFPSCharacter::GetHealthMax() const
+{
+	return CachedAttributeSet ? CachedAttributeSet->GetMaxHealth() : 1.f;
+}
+
+int32 ABaseFPSCharacter::GetAmmoInMag() const
+{
+	return HUDAmmoInMag;
+}
+
+int32 ABaseFPSCharacter::GetMagSize() const
+{
+	return HUDMagSize;
+}
+
+void ABaseFPSCharacter::BroadcastHUDHealth()
+{
+	HUDHealthChanged.Broadcast(GetHealthCurrent(), GetHealthMax());
+}
+
+void ABaseFPSCharacter::BroadcastHUDAmmo()
+{
+	HUDAmmoChanged.Broadcast(GetAmmoInMag(), GetMagSize());
+}
+
 void ABaseFPSCharacter::OnRep_CurrentWeapon()
 {
 	ApplyCurrentWeaponVisibility();
+	if (CurrentWeapon)
+	{
+		NotifyAmmoChangedValues(CurrentWeapon->GetCurrentAmmoInMagazine(), CurrentWeapon->GetMagazineSize());
+	}
+	else
+	{
+		NotifyAmmoChangedValues(0, 0);
+	}
+}
+
+void ABaseFPSCharacter::OnRep_HUDAmmoInMag()
+{
+	HUDAmmoChanged.Broadcast(HUDAmmoInMag, HUDMagSize);
+}
+
+void ABaseFPSCharacter::OnRep_HUDMagSize()
+{
+	HUDAmmoChanged.Broadcast(HUDAmmoInMag, HUDMagSize);
 }
 
 void ABaseFPSCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -628,4 +701,6 @@ void ABaseFPSCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME(ABaseFPSCharacter, CurrentWeapon);
 	DOREPLIFETIME(ABaseFPSCharacter, CurrentWeaponSlot);
 	DOREPLIFETIME(ABaseFPSCharacter, bDead);
+	DOREPLIFETIME(ABaseFPSCharacter, HUDAmmoInMag);
+	DOREPLIFETIME(ABaseFPSCharacter, HUDMagSize);
 }
