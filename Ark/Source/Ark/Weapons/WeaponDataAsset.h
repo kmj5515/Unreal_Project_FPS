@@ -5,6 +5,7 @@
 #include "WeaponDataAsset.generated.h"
 
 class UGameplayEffect;
+class UParticleSystem;
 
 UCLASS(BlueprintType)
 class ARK_API UWeaponDataAsset : public UDataAsset
@@ -32,4 +33,7 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Damage")
 	TSubclassOf<UGameplayEffect> DamageGameplayEffect;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|FX")
+	TObjectPtr<UParticleSystem> MuzzleFlashParticle;
 };

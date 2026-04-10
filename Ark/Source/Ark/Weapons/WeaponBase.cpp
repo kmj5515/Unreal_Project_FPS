@@ -12,6 +12,7 @@
 #include "Logging/LogMacros.h"
 #include "TimerManager.h"
 #include "DrawDebugHelpers.h"
+#include "Particles/ParticleSystem.h"
 #include "WeaponDataAsset.h"
 
 AWeaponBase::AWeaponBase()
@@ -48,6 +49,11 @@ void AWeaponBase::ApplyWeaponDataFromAsset()
 	if (WeaponData->DamageGameplayEffect)
 	{
 		DamageGameplayEffect = WeaponData->DamageGameplayEffect;
+	}
+
+	if (WeaponData->MuzzleFlashParticle)
+	{
+		MuzzleFlashParticle = WeaponData->MuzzleFlashParticle;
 	}
 }
 
@@ -142,6 +148,8 @@ void AWeaponBase::FireOnce()
 		return;
 	}
 
+	Multicast_PlayMuzzleFlash();
+
 	FHitResult Hit;
 	if (PerformHitscanTrace(Hit, Start, End) && Hit.GetActor())
 	{
@@ -167,10 +175,43 @@ bool AWeaponBase::GetAimStartEnd(FVector& OutStart, FVector& OutEnd) const
 	FVector EyeLocation;
 	FRotator EyeRotation;
 	OwnerCharacter->GetActorEyesViewPoint(EyeLocation, EyeRotation);
+	const FVector AimDir = EyeRotation.Vector();
 
-	OutStart = EyeLocation;
-	OutEnd = EyeLocation + (EyeRotation.Vector() * Range);
+	if (WeaponMesh && WeaponMesh->GetSkeletalMeshAsset() && MuzzleSocketName != NAME_None
+		&& WeaponMesh->DoesSocketExist(MuzzleSocketName))
+	{
+		OutStart = WeaponMesh->GetSocketLocation(MuzzleSocketName);
+	}
+	else
+	{
+		OutStart = EyeLocation;
+	}
+
+	OutEnd = OutStart + (AimDir * Range);
 	return true;
+}
+
+void AWeaponBase::Multicast_PlayMuzzleFlash_Implementation()
+{
+	if (GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+
+	if (!MuzzleFlashParticle || !WeaponMesh || MuzzleSocketName == NAME_None || !WeaponMesh->DoesSocketExist(MuzzleSocketName))
+	{
+		return;
+	}
+
+	UGameplayStatics::SpawnEmitterAttached(
+		MuzzleFlashParticle,
+		WeaponMesh,
+		MuzzleSocketName,
+		FVector::ZeroVector,
+		FRotator::ZeroRotator,
+		FVector(MuzzleFlashScale),
+		EAttachLocation::SnapToTarget,
+		true);
 }
 
 bool AWeaponBase::PerformHitscanTrace(FHitResult& OutHit, const FVector& Start, const FVector& End) const

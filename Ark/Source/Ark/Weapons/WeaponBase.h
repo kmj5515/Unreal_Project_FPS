@@ -11,6 +11,7 @@ class ABaseFPSCharacter;
 class UWorld;
 class UGameplayEffect;
 class UWeaponDataAsset;
+class UParticleSystem;
 
 UCLASS()
 class ARK_API AWeaponBase : public AActor
@@ -38,6 +39,9 @@ protected:
 	bool TryApplyGasDamageFromHit(const FHitResult& Hit);
 
 	void PerformMeleeAttack();
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_PlayMuzzleFlash();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<USkeletalMeshComponent> WeaponMesh;
@@ -74,6 +78,15 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Data")
 	TObjectPtr<UWeaponDataAsset> WeaponData;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Trace")
+	FName MuzzleSocketName = FName(TEXT("MuzzleFlash"));
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|FX")
+	TObjectPtr<UParticleSystem> MuzzleFlashParticle;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|FX", meta = (ClampMin = "0.01"))
+	float MuzzleFlashScale = 1.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Debug")
 	bool bDebugDrawTrace = false;
