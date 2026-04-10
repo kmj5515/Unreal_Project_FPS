@@ -53,6 +53,8 @@ protected:
 	void HandleEquipMelee();
 	void HandleFireStarted();
 	void HandleFireStopped();
+	void HandleCrouchStarted();
+	void HandleCrouchStopped();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UCameraComponent> FirstPersonCamera;
@@ -86,6 +88,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> EquipMeleeAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> CrouchAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input", meta = (ClampMin = "0.01", ClampMax = "5.0"))
 	float LookSensitivityMultiplier = 0.5f;

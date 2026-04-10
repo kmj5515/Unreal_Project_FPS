@@ -22,10 +22,16 @@ public:
 	float Direction = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
-	bool bIsInAir = false;
+	bool bJumping = false;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
-	bool bIsCrouched = false;
+	bool bEnableJump = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	bool bJumpPressed = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	bool bCrouching = false;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")

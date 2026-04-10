@@ -25,8 +25,10 @@ ABaseFPSCharacter::ABaseFPSCharacter()
 
 	GetCharacterMovement()->bOrientRotationToMovement = false;
 	GetCharacterMovement()->MaxWalkSpeed = 500.f;
+	GetCharacterMovement()->MaxWalkSpeedCrouched = 250.f;
 	GetCharacterMovement()->JumpZVelocity = 520.f;
 	GetCharacterMovement()->AirControl = 0.35f;
+	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
 
 	FirstPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
 	FirstPersonCamera->SetupAttachment(GetCapsuleComponent());
@@ -143,6 +145,12 @@ void ABaseFPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 		{
 			EnhancedInputComponent->BindAction(EquipMeleeAction, ETriggerEvent::Started, this, &ABaseFPSCharacter::HandleEquipMelee);
 		}
+
+		if (CrouchAction)
+		{
+			EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Started, this, &ABaseFPSCharacter::HandleCrouchStarted);
+			EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Completed, this, &ABaseFPSCharacter::HandleCrouchStopped);
+		}
 	}
 }
 
@@ -197,6 +205,16 @@ void ABaseFPSCharacter::HandleEquipSecondary()
 void ABaseFPSCharacter::HandleEquipMelee()
 {
 	EquipWeaponBySlot(EFPSWeaponSlot::Melee);
+}
+
+void ABaseFPSCharacter::HandleCrouchStarted()
+{
+	Crouch();
+}
+
+void ABaseFPSCharacter::HandleCrouchStopped()
+{
+	UnCrouch();
 }
 
 void ABaseFPSCharacter::HandleFireStarted()

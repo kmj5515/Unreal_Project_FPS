@@ -1,5 +1,12 @@
 # Resolved Issues
 
+## 2026-04-10 - 앉기(Crouch) 입력은 되는데 동작 안 함
+- 증상: `Crouch()` 호출 시 `CanEverCrouch=0`, `LogCharacter: ... crouching is disabled on this character! (check CharacterMovement NavAgentSettings)`
+- 원인: 캐릭터 BP의 **Character Movement → Nav Agent**에서 **`Can Crouch`**가 꺼져 있어 `CanEverCrouch()`가 false. C++ 생성자에서 켠 값이 BP 컴포넌트 기본값에 덮임
+- 해결:
+  - `ABaseFPSCharacter::BeginPlay`에서 `GetCharacterMovement()->NavAgentProps.bCanCrouch = true` 재설정
+  - 에디터에서도 동일 BP에 **Nav Agent → Can Crouch** 켜 두면 재발 방지에 유리
+
 ## 2026-04-09 - 모듈러 의상 스켈레탈 메쉬가 본체와 따로 노는 문제
 - 증상: 캐릭터 본체 애니메이션은 정상인데, 본체 `Mesh`의 자식인 의상 스켈레탈 메쉬들이 동작을 제대로 따라가지 않음
 - 원인: 의상 메쉬가 본체 메쉬 포즈를 리더-팔로워 구조로 복사하도록 설정되지 않음

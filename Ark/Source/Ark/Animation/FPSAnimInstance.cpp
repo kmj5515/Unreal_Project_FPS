@@ -2,6 +2,7 @@
 
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "KismetAnimationLibrary.h"
 
 void UFPSAnimInstance::NativeInitializeAnimation()
 {
@@ -22,23 +23,28 @@ void UFPSAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	{
 		Speed = 0.0f;
 		Direction = 0.0f;
-		bIsInAir = false;
-		bIsCrouched = false;
+		bJumping = false;
+		bEnableJump = false;
+		bJumpPressed = false;
+		bCrouching = false;
 		return;
 	}
 
 	const FVector Velocity = OwningCharacter->GetVelocity();
 	const FVector HorizontalVelocity(Velocity.X, Velocity.Y, 0.0f);
 	Speed = HorizontalVelocity.Size();
-	Direction = CalculateDirection(Velocity, OwningCharacter->GetActorRotation());
-	bIsCrouched = OwningCharacter->bIsCrouched;
+	Direction = UKismetAnimationLibrary::CalculateDirection(Velocity, OwningCharacter->GetActorRotation());
+	bCrouching = OwningCharacter->bIsCrouched;
 
 	if (const UCharacterMovementComponent* MovementComponent = OwningCharacter->GetCharacterMovement())
 	{
-		bIsInAir = MovementComponent->IsFalling();
+		bJumping = MovementComponent->IsFalling();
 	}
 	else
 	{
-		bIsInAir = false;
+		bJumping = false;
 	}
+
+	bEnableJump = OwningCharacter->CanJump();
+	bJumpPressed = OwningCharacter->bPressedJump;
 }
