@@ -8,8 +8,12 @@
 #include "GameFramework/Pawn.h"
 #include "GameplayEffect.h"
 #include "AbilitySystemComponent.h"
+#include "Animation/AnimInstance.h"
+#include "Animation/AnimMontage.h"
 #include "Kismet/GameplayStatics.h"
 #include "Logging/LogMacros.h"
+#include "Net/UnrealNetwork.h"
+#include "Sound/SoundBase.h"
 #include "TimerManager.h"
 #include "DrawDebugHelpers.h"
 #include "Particles/ParticleSystem.h"
@@ -55,6 +59,19 @@ void AWeaponBase::ApplyWeaponDataFromAsset()
 	{
 		MuzzleFlashParticle = WeaponData->MuzzleFlashParticle;
 	}
+
+	if (WeaponData->FireSound)
+	{
+		FireSound = WeaponData->FireSound;
+	}
+
+	if (WeaponData->ReloadMontage)
+	{
+		ReloadMontage = WeaponData->ReloadMontage;
+	}
+
+	MagazineSize = FMath::Max(1, WeaponData->MagazineSize);
+	AmmoInMagazine = FMath::Min(AmmoInMagazine, MagazineSize);
 }
 
 void AWeaponBase::InitializeWeapon(ABaseFPSCharacter* InOwnerCharacter, EFPSWeaponSlot InSlot)
@@ -80,11 +97,26 @@ void AWeaponBase::OnEquipped(const FName& AttachSocketName)
 void AWeaponBase::OnUnequipped()
 {
 	StopFire();
+	bIsReloading = false;
+	GetWorldTimerManager().ClearTimer(ReloadTimerHandle);
+	if (HasAuthority())
+	{
+		Multicast_OnReloadFinished();
+	}
+	if (OwnerCharacter)
+	{
+		OwnerCharacter->NotifyReloadFinished();
+	}
 }
 
 void AWeaponBase::StartFire()
 {
 	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (bIsReloading)
 	{
 		return;
 	}
@@ -101,6 +133,13 @@ void AWeaponBase::StartFire()
 	if (WeaponSlot == EFPSWeaponSlot::Melee)
 	{
 		FireOnce();
+		bIsFiring = false;
+		return;
+	}
+
+	if (AmmoInMagazine <= 0)
+	{
+		StartReload();
 		bIsFiring = false;
 		return;
 	}
@@ -124,6 +163,43 @@ void AWeaponBase::StopFire()
 	GetWorldTimerManager().ClearTimer(RefireTimerHandle);
 }
 
+void AWeaponBase::StartReload()
+{
+	if (!HasAuthority() || bIsReloading || WeaponSlot == EFPSWeaponSlot::Melee)
+	{
+		return;
+	}
+
+	if (!ReloadMontage)
+	{
+		return;
+	}
+
+	if (!CanReload())
+	{
+		return;
+	}
+
+	bIsReloading = true;
+	bIsFiring = false;
+	GetWorldTimerManager().ClearTimer(RefireTimerHandle);
+	Multicast_PlayReloadMontage();
+	if (OwnerCharacter)
+	{
+		OwnerCharacter->NotifyReloadStarted();
+	}
+
+	const float ActualReloadDuration = FMath::Max(0.f, ReloadMontage->GetPlayLength());
+
+	if (ActualReloadDuration <= 0.f)
+	{
+		FinishReload();
+		return;
+	}
+
+	GetWorldTimerManager().SetTimer(ReloadTimerHandle, this, &AWeaponBase::FinishReload, ActualReloadDuration, false);
+}
+
 void AWeaponBase::FireOnce()
 {
 	if (!HasAuthority())
@@ -142,6 +218,16 @@ void AWeaponBase::FireOnce()
 		return;
 	}
 
+	if (AmmoInMagazine <= 0)
+	{
+		StartReload();
+		if (bFullAuto)
+		{
+			StopFire();
+		}
+		return;
+	}
+
 	FVector Start, End;
 	if (!GetAimStartEnd(Start, End))
 	{
@@ -149,6 +235,7 @@ void AWeaponBase::FireOnce()
 	}
 
 	Multicast_PlayMuzzleFlash();
+	AmmoInMagazine = FMath::Max(0, AmmoInMagazine - 1);
 
 	FHitResult Hit;
 	if (PerformHitscanTrace(Hit, Start, End) && Hit.GetActor())
@@ -163,6 +250,32 @@ void AWeaponBase::FireOnce()
 	{
 		UE_LOG(LogTemp, Log, TEXT("[WeaponFire] Miss: %s"), *GetName());
 	}
+}
+
+void AWeaponBase::FinishReload()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	bIsReloading = false;
+	AmmoInMagazine = MagazineSize;
+	Multicast_OnReloadFinished();
+	if (OwnerCharacter)
+	{
+		OwnerCharacter->NotifyReloadFinished();
+	}
+}
+
+bool AWeaponBase::CanReload() const
+{
+	if (WeaponSlot == EFPSWeaponSlot::Melee)
+	{
+		return false;
+	}
+
+	return AmmoInMagazine < MagazineSize;
 }
 
 bool AWeaponBase::GetAimStartEnd(FVector& OutStart, FVector& OutEnd) const
@@ -198,20 +311,66 @@ void AWeaponBase::Multicast_PlayMuzzleFlash_Implementation()
 		return;
 	}
 
-	if (!MuzzleFlashParticle || !WeaponMesh || MuzzleSocketName == NAME_None || !WeaponMesh->DoesSocketExist(MuzzleSocketName))
+	if (!WeaponMesh || MuzzleSocketName == NAME_None || !WeaponMesh->DoesSocketExist(MuzzleSocketName))
 	{
 		return;
 	}
 
-	UGameplayStatics::SpawnEmitterAttached(
-		MuzzleFlashParticle,
-		WeaponMesh,
-		MuzzleSocketName,
-		FVector::ZeroVector,
-		FRotator::ZeroRotator,
-		FVector(MuzzleFlashScale),
-		EAttachLocation::SnapToTarget,
-		true);
+	if (MuzzleFlashParticle)
+	{
+		UGameplayStatics::SpawnEmitterAttached(
+			MuzzleFlashParticle,
+			WeaponMesh,
+			MuzzleSocketName,
+			FVector::ZeroVector,
+			FRotator::ZeroRotator,
+			FVector(MuzzleFlashScale),
+			EAttachLocation::SnapToTarget,
+			true);
+	}
+
+	if (FireSound)
+	{
+		UGameplayStatics::SpawnSoundAttached(
+			FireSound,
+			WeaponMesh,
+			MuzzleSocketName,
+			FVector::ZeroVector,
+			EAttachLocation::SnapToTarget);
+	}
+}
+
+void AWeaponBase::Multicast_PlayReloadMontage_Implementation()
+{
+	if (GetNetMode() == NM_DedicatedServer || !OwnerCharacter || !ReloadMontage)
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* OwnerMesh = OwnerCharacter->GetMesh();
+	if (!OwnerMesh)
+	{
+		return;
+	}
+
+	if (UAnimInstance* AnimInstance = OwnerMesh->GetAnimInstance())
+	{
+		AnimInstance->Montage_Play(ReloadMontage, 1.f);
+	}
+}
+
+void AWeaponBase::Multicast_OnReloadFinished_Implementation()
+{
+	if (GetNetMode() == NM_DedicatedServer || !OwnerCharacter || !OwnerCharacter->IsLocallyControlled())
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* OwnerMesh = OwnerCharacter->GetMesh();
+	if (!OwnerMesh)
+	{
+		return;
+	}
 }
 
 bool AWeaponBase::PerformHitscanTrace(FHitResult& OutHit, const FVector& Start, const FVector& End) const
@@ -403,4 +562,10 @@ bool AWeaponBase::TryApplyGasDamageFromHit(const FHitResult& Hit)
 
 	SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
 	return true;
+}
+
+void AWeaponBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AWeaponBase, AmmoInMagazine);
 }

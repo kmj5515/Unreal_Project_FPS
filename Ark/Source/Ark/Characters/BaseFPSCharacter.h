@@ -39,11 +39,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void RequestStopFire();
 
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void RequestReload();
+
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	bool IsDead() const { return bDead; }
 
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	UAnimMontage* GetDeathMontage() const { return DeathMontage; }
+
+	void NotifyReloadStarted();
+	void NotifyReloadFinished();
 
 protected:
 	virtual void BeginPlay() override;
@@ -62,6 +68,7 @@ protected:
 	void HandleFireStopped();
 	void HandleCrouchStarted();
 	void HandleCrouchStopped();
+	void HandleReloadStarted();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UCameraComponent> FirstPersonCamera;
@@ -99,6 +106,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> CrouchAction;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> ReloadAction;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input", meta = (ClampMin = "0.01", ClampMax = "5.0"))
 	float LookSensitivityMultiplier = 0.5f;
 
@@ -120,6 +130,9 @@ protected:
 
 	UFUNCTION(Server, Reliable)
 	void ServerSetFiring(bool bNewFiring);
+
+	UFUNCTION(Server, Reliable)
+	void ServerStartReload();
 
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_OnDeath();

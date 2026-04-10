@@ -12,6 +12,8 @@ class UWorld;
 class UGameplayEffect;
 class UWeaponDataAsset;
 class UParticleSystem;
+class USoundBase;
+class UAnimMontage;
 
 UCLASS()
 class ARK_API AWeaponBase : public AActor
@@ -27,12 +29,21 @@ public:
 
 	virtual void StartFire();
 	virtual void StopFire();
+	virtual void StartReload();
+
+	UFUNCTION(BlueprintPure, Category = "Weapon|Ammo")
+	bool IsReloading() const { return bIsReloading; }
+
+	UFUNCTION(BlueprintPure, Category = "Weapon|Ammo")
+	int32 GetCurrentAmmoInMagazine() const { return AmmoInMagazine; }
 
 protected:
 	virtual void BeginPlay() override;
 	void ApplyWeaponDataFromAsset();
 
 	void FireOnce();
+	void FinishReload();
+	bool CanReload() const;
 	bool GetAimStartEnd(FVector& OutStart, FVector& OutEnd) const;
 	bool PerformHitscanTrace(FHitResult& OutHit, const FVector& Start, const FVector& End) const;
 	void ApplyPointDamageFromHit(const FHitResult& Hit);
@@ -42,6 +53,14 @@ protected:
 
 	UFUNCTION(NetMulticast, Unreliable)
 	void Multicast_PlayMuzzleFlash();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_PlayReloadMontage();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_OnReloadFinished();
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<USkeletalMeshComponent> WeaponMesh;
@@ -67,6 +86,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Stats", meta = (ClampMin = "0.01", Units = "s"))
 	float RefireRate = 0.12f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Stats", meta = (ClampMin = "1"))
+	int32 MagazineSize = 15;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Stats")
 	bool bFullAuto = true;
 
@@ -88,6 +110,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|FX", meta = (ClampMin = "0.01"))
 	float MuzzleFlashScale = 1.f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|SFX")
+	TObjectPtr<USoundBase> FireSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Animation")
+	TObjectPtr<UAnimMontage> ReloadMontage;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Debug")
 	bool bDebugDrawTrace = false;
 
@@ -95,5 +123,10 @@ protected:
 	float DebugDrawDuration = 1.0f;
 
 	bool bIsFiring = false;
+	bool bIsReloading = false;
+	FTimerHandle ReloadTimerHandle;
 	FTimerHandle RefireTimerHandle;
+
+	UPROPERTY(Replicated)
+	int32 AmmoInMagazine = 15;
 };

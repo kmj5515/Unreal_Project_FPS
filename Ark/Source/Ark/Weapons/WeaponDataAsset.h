@@ -6,6 +6,8 @@
 
 class UGameplayEffect;
 class UParticleSystem;
+class USoundBase;
+class UAnimMontage;
 
 UCLASS(BlueprintType)
 class ARK_API UWeaponDataAsset : public UDataAsset
@@ -22,6 +24,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Stats", meta = (ClampMin = "0.01", Units = "s"))
 	float RefireRate = 0.12f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Stats", meta = (ClampMin = "1"))
+	int32 MagazineSize = 15;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Stats")
 	bool bFullAuto = true;
 
@@ -36,4 +41,10 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|FX")
 	TObjectPtr<UParticleSystem> MuzzleFlashParticle;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|SFX")
+	TObjectPtr<USoundBase> FireSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Animation")
+	TObjectPtr<UAnimMontage> ReloadMontage;
 };

@@ -67,6 +67,15 @@ void ABaseFPSCharacter::RequestStopFire()
 	HandleFireStopped();
 }
 
+void ABaseFPSCharacter::RequestReload()
+{
+	if (bDead)
+	{
+		return;
+	}
+	HandleReloadStarted();
+}
+
 void ABaseFPSCharacter::BeginPlay()
 {
 	Super::BeginPlay();
@@ -166,6 +175,11 @@ void ABaseFPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 		{
 			EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Started, this, &ABaseFPSCharacter::HandleCrouchStarted);
 			EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Completed, this, &ABaseFPSCharacter::HandleCrouchStopped);
+		}
+
+		if (ReloadAction)
+		{
+			EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Started, this, &ABaseFPSCharacter::HandleReloadStarted);
 		}
 	}
 }
@@ -301,6 +315,16 @@ void ABaseFPSCharacter::HandleFireStopped()
 	ServerSetFiring(false);
 }
 
+void ABaseFPSCharacter::HandleReloadStarted()
+{
+	if (bDead)
+	{
+		return;
+	}
+
+	ServerStartReload();
+}
+
 void ABaseFPSCharacter::InitializeAbilityActorInfo()
 {
 	if (AFPSPlayerState* FPSPlayerState = GetPlayerState<AFPSPlayerState>())
@@ -378,6 +402,7 @@ void ABaseFPSCharacter::HandleDeathFromAuthority()
 	{
 		CurrentWeapon->StopFire();
 	}
+	NotifyReloadFinished();
 
 	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
 	{
@@ -543,6 +568,11 @@ void ABaseFPSCharacter::ServerSetFiring_Implementation(bool bNewFiring)
 		return;
 	}
 
+	if (CurrentWeapon->IsReloading() && bNewFiring)
+	{
+		return;
+	}
+
 	if (bNewFiring)
 	{
 		CurrentWeapon->StartFire();
@@ -551,6 +581,36 @@ void ABaseFPSCharacter::ServerSetFiring_Implementation(bool bNewFiring)
 	{
 		CurrentWeapon->StopFire();
 	}
+}
+
+void ABaseFPSCharacter::ServerStartReload_Implementation()
+{
+	if (bDead || !CurrentWeapon)
+	{
+		return;
+	}
+
+	CurrentWeapon->StartReload();
+}
+
+void ABaseFPSCharacter::NotifyReloadStarted()
+{
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
+
+	AbilitySystemComponent->AddLooseGameplayTag(FPSGameplayTags::State_Reloading.GetTag());
+}
+
+void ABaseFPSCharacter::NotifyReloadFinished()
+{
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
+
+	AbilitySystemComponent->RemoveLooseGameplayTag(FPSGameplayTags::State_Reloading.GetTag());
 }
 
 void ABaseFPSCharacter::OnRep_CurrentWeapon()
