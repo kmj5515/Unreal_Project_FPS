@@ -1,11 +1,14 @@
 #include "FPSProjectileBullet.h"
 
 #include "../Characters/BaseFPSCharacter.h"
+#include "../Core/FPSPlayerState.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystem.h"
 #include "Particles/ParticleSystemComponent.h"
+#include "AbilitySystemComponent.h"
+#include "GameplayEffect.h"
 
 AFPSProjectileBullet::AFPSProjectileBullet()
 {
@@ -14,9 +17,13 @@ AFPSProjectileBullet::AFPSProjectileBullet()
 
 	CollisionSphere = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionSphere"));
 	SetRootComponent(CollisionSphere);
-	CollisionSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	CollisionSphere->SetCollisionResponseToAllChannels(ECR_Block);
+	CollisionSphere->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	CollisionSphere->SetCollisionObjectType(ECC_WorldDynamic);
+	CollisionSphere->SetCollisionResponseToAllChannels(ECR_Ignore);
+	CollisionSphere->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
+	CollisionSphere->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
 	CollisionSphere->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
+	CollisionSphere->SetNotifyRigidBodyCollision(true);
 
 	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
 	ProjectileMovement->InitialSpeed = 12000.f;
@@ -25,10 +32,21 @@ AFPSProjectileBullet::AFPSProjectileBullet()
 	ProjectileMovement->ProjectileGravityScale = 0.f;
 }
 
-void AFPSProjectileBullet::InitializeProjectile(float InDamage, float InInitialSpeed, ABaseFPSCharacter* InDamageInstigator)
+void AFPSProjectileBullet::InitializeProjectile(
+	float InDamage,
+	float InInitialSpeed,
+	ABaseFPSCharacter* InDamageInstigator,
+	TSubclassOf<UGameplayEffect> InDamageGameplayEffect,
+	FGameplayTag InDamageSetByCallerTag)
 {
 	Damage = InDamage;
 	DamageInstigator = InDamageInstigator;
+	DamageGameplayEffect = InDamageGameplayEffect;
+	DamageSetByCallerTag = InDamageSetByCallerTag;
+	if (DamageInstigator)
+	{
+		CollisionSphere->IgnoreActorWhenMoving(DamageInstigator, true);
+	}
 	if (ProjectileMovement)
 	{
 		ProjectileMovement->InitialSpeed = InInitialSpeed;
@@ -68,20 +86,35 @@ void AFPSProjectileBullet::OnProjectileHit(
 	FVector NormalImpulse,
 	const FHitResult& Hit)
 {
-	if (HasAuthority() && OtherActor && OtherActor != this && OtherActor != DamageInstigator)
+	if (bDamageApplied || !HasAuthority() || !OtherActor || OtherActor == this || OtherActor == DamageInstigator || OtherActor == GetOwner())
 	{
-		APawn* InstigatorPawn = Cast<APawn>(DamageInstigator);
-		AController* InstigatorController = InstigatorPawn ? InstigatorPawn->GetController() : nullptr;
-		const FVector ShotDirection = GetActorForwardVector();
+		return;
+	}
+	bDamageApplied = true;
 
-		UGameplayStatics::ApplyPointDamage(
-			OtherActor,
-			Damage,
-			ShotDirection,
-			Hit,
-			InstigatorController,
-			this,
-			UDamageType::StaticClass());
+	if (DamageGameplayEffect && DamageInstigator)
+	{
+		AFPSPlayerState* SourcePS = DamageInstigator->GetPlayerState<AFPSPlayerState>();
+		APawn* HitPawn = Cast<APawn>(OtherActor);
+		AFPSPlayerState* TargetPS = HitPawn ? HitPawn->GetPlayerState<AFPSPlayerState>() : nullptr;
+		if (SourcePS && TargetPS)
+		{
+			UAbilitySystemComponent* SourceASC = SourcePS->GetAbilitySystemComponent();
+			UAbilitySystemComponent* TargetASC = TargetPS->GetAbilitySystemComponent();
+			if (SourceASC && TargetASC && DamageSetByCallerTag.IsValid())
+			{
+				FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
+				EffectContext.AddSourceObject(this);
+				EffectContext.AddHitResult(Hit);
+
+				const FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(DamageGameplayEffect, 1.f, EffectContext);
+				if (SpecHandle.IsValid())
+				{
+					SpecHandle.Data->SetSetByCallerMagnitude(DamageSetByCallerTag, Damage);
+					SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
+				}
+			}
+		}
 	}
 
 	Destroy();

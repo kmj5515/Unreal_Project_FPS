@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "GameFramework/Actor.h"
 #include "FPSProjectileBullet.generated.h"
 
@@ -9,6 +10,7 @@ class UProjectileMovementComponent;
 class ABaseFPSCharacter;
 class UParticleSystem;
 class UParticleSystemComponent;
+class UGameplayEffect;
 
 UCLASS()
 class ARK_API AFPSProjectileBullet : public AActor
@@ -17,7 +19,12 @@ class ARK_API AFPSProjectileBullet : public AActor
 
 public:
 	AFPSProjectileBullet();
-	void InitializeProjectile(float InDamage, float InInitialSpeed, ABaseFPSCharacter* InDamageInstigator);
+	void InitializeProjectile(
+		float InDamage,
+		float InInitialSpeed,
+		ABaseFPSCharacter* InDamageInstigator,
+		TSubclassOf<UGameplayEffect> InDamageGameplayEffect,
+		FGameplayTag InDamageSetByCallerTag);
 
 protected:
 	virtual void BeginPlay() override;
@@ -46,6 +53,12 @@ protected:
 	TObjectPtr<UParticleSystemComponent> TraceParticleComponent;
 
 	float Damage = 25.f;
+	bool bDamageApplied = false;
+
+	UPROPERTY()
+	TSubclassOf<UGameplayEffect> DamageGameplayEffect;
+
+	FGameplayTag DamageSetByCallerTag;
 
 	UPROPERTY()
 	TObjectPtr<ABaseFPSCharacter> DamageInstigator;

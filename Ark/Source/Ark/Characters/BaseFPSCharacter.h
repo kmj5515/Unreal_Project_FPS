@@ -102,6 +102,7 @@ protected:
 	void HandlePickupPressed();
 	void HandleDropPressed();
 	void HandleInteractPressed();
+	void HandleServerInteract();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UCameraComponent> FirstPersonCamera;
@@ -183,6 +184,9 @@ protected:
 
 	UFUNCTION(Server, Reliable)
 	void ServerDropCurrentWeapon();
+
+	UFUNCTION(Server, Reliable)
+	void ServerInteract();
 
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_OnDeath();

@@ -383,11 +383,25 @@ void ABaseFPSCharacter::HandleInteractPressed()
 	}
 	LastInteractInputFrame = GFrameCounter;
 
+	if (HasAuthority())
+	{
+		HandleServerInteract();
+	}
+	else
+	{
+		ServerInteract();
+	}
+}
+
+void ABaseFPSCharacter::HandleServerInteract()
+{
 	if (OverlappingWeapon)
 	{
 		ServerPickupOverlappingWeapon();
+		return;
 	}
-	else if (CurrentWeapon)
+
+	if (CurrentWeapon)
 	{
 		ServerDropCurrentWeapon();
 	}
@@ -783,6 +797,16 @@ void ABaseFPSCharacter::ServerDropCurrentWeapon_Implementation()
 	{
 		NotifyAmmoChangedValues(0, 0);
 	}
+}
+
+void ABaseFPSCharacter::ServerInteract_Implementation()
+{
+	if (bDead)
+	{
+		return;
+	}
+
+	HandleServerInteract();
 }
 
 void ABaseFPSCharacter::NotifyReloadStarted()

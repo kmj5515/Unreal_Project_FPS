@@ -26,6 +26,7 @@
 AWeaponBase::AWeaponBase()
 {
 	bReplicates = true;
+	SetReplicateMovement(true);
 	PrimaryActorTick.bCanEverTick = false;
 	DamageSetByCallerTag = FPSGameplayTags::Data_Damage;
 
@@ -116,19 +117,17 @@ void AWeaponBase::InitializeWeapon(ABaseFPSCharacter* InOwnerCharacter, EFPSWeap
 
 void AWeaponBase::OnEquipped(const FName& AttachSocketName)
 {
-	if (!OwnerCharacter)
+	if (AttachSocketName != NAME_None)
 	{
-		return;
+		EquippedSocketName = AttachSocketName;
 	}
 
-	AttachToComponent(
-		OwnerCharacter->GetMesh(),
-		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-		AttachSocketName);
+	SetWeaponState(EFPSWeaponNetState::Equipped);
 
-	SetDroppedState(false);
-
-	OwnerCharacter->NotifyAmmoChangedValues(AmmoInMagazine, MagazineSize);
+	if (OwnerCharacter)
+	{
+		OwnerCharacter->NotifyAmmoChangedValues(AmmoInMagazine, MagazineSize);
+	}
 }
 
 void AWeaponBase::OnUnequipped()
@@ -150,25 +149,47 @@ void AWeaponBase::OnUnequipped()
 
 void AWeaponBase::SetDroppedState(bool bDropped)
 {
-	bIsDropped = bDropped;
+	SetWeaponState(bDropped ? EFPSWeaponNetState::Dropped : EFPSWeaponNetState::Equipped);
+}
 
-	if (bDropped)
+void AWeaponBase::SetWeaponState(EFPSWeaponNetState NewState)
+{
+	WeaponState = NewState;
+	if (HasAuthority())
 	{
-		DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-		SetOwner(nullptr);
-		OwnerCharacter = nullptr;
-		WeaponMesh->SetSimulatePhysics(true);
-		WeaponMesh->SetEnableGravity(true);
-		WeaponMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-		WeaponMesh->SetCollisionResponseToAllChannels(ECR_Block);
-		WeaponMesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
-		WeaponMesh->AddImpulse(GetActorForwardVector() * DropImpulseStrength, NAME_None, true);
-
-		if (HasAuthority() && PickupSphere)
+		if (WeaponState == EFPSWeaponNetState::Dropped)
 		{
-			PickupSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			SetOwner(nullptr);
+			OwnerCharacter = nullptr;
 		}
-		return;
+		else if (OwnerCharacter)
+		{
+			SetOwner(OwnerCharacter);
+		}
+	}
+	ApplyWeaponState();
+}
+
+void AWeaponBase::ApplyWeaponState()
+{
+	if (WeaponState == EFPSWeaponNetState::Dropped)
+	{
+		ApplyDroppedState();
+	}
+	else
+	{
+		ApplyEquippedState();
+	}
+}
+
+void AWeaponBase::ApplyEquippedState()
+{
+	if (OwnerCharacter && OwnerCharacter->GetMesh())
+	{
+		AttachToComponent(
+			OwnerCharacter->GetMesh(),
+			FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+			EquippedSocketName);
 	}
 
 	WeaponMesh->SetSimulatePhysics(false);
@@ -177,6 +198,25 @@ void AWeaponBase::SetDroppedState(bool bDropped)
 	if (PickupSphere)
 	{
 		PickupSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+}
+
+void AWeaponBase::ApplyDroppedState()
+{
+	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	WeaponMesh->SetSimulatePhysics(true);
+	WeaponMesh->SetEnableGravity(true);
+	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	WeaponMesh->SetCollisionResponseToAllChannels(ECR_Block);
+	WeaponMesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	if (HasAuthority())
+	{
+		WeaponMesh->AddImpulse(GetActorForwardVector() * DropImpulseStrength, NAME_None, true);
+	}
+
+	if (PickupSphere)
+	{
+		PickupSphere->SetCollisionEnabled(HasAuthority() ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
 	}
 }
 
@@ -367,7 +407,12 @@ void AWeaponBase::SpawnProjectile(const FVector& Start, const FVector& End)
 		ToTarget.Rotation(),
 		SpawnParams))
 	{
-		Projectile->InitializeProjectile(Damage, ProjectileInitialSpeed, OwnerCharacter);
+		Projectile->InitializeProjectile(
+			Damage,
+			ProjectileInitialSpeed,
+			OwnerCharacter,
+			DamageGameplayEffect,
+			DamageSetByCallerTag);
 	}
 }
 
@@ -734,6 +779,8 @@ void AWeaponBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AWeaponBase, OwnerCharacter);
 	DOREPLIFETIME(AWeaponBase, AmmoInMagazine);
+	DOREPLIFETIME(AWeaponBase, WeaponState);
+	DOREPLIFETIME(AWeaponBase, EquippedSocketName);
 }
 
 void AWeaponBase::OnRep_AmmoInMagazine()
@@ -750,6 +797,12 @@ void AWeaponBase::OnRep_OwnerCharacter()
 	{
 		OwnerCharacter->NotifyAmmoChangedValues(AmmoInMagazine, MagazineSize);
 	}
+	ApplyWeaponState();
+}
+
+void AWeaponBase::OnRep_WeaponState()
+{
+	ApplyWeaponState();
 }
 
 void AWeaponBase::OnPickupSphereBeginOverlap(
@@ -761,7 +814,7 @@ void AWeaponBase::OnPickupSphereBeginOverlap(
 	const FHitResult& SweepResult)
 {
 	ABaseFPSCharacter* OverlapCharacter = Cast<ABaseFPSCharacter>(OtherActor);
-	if (!OverlapCharacter || !bIsDropped)
+	if (!OverlapCharacter || WeaponState != EFPSWeaponNetState::Dropped)
 	{
 		return;
 	}

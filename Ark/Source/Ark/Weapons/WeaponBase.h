@@ -26,6 +26,13 @@ enum class EFPSFireMode : uint8
 	Projectile
 };
 
+UENUM(BlueprintType)
+enum class EFPSWeaponNetState : uint8
+{
+	Equipped = 0,
+	Dropped
+};
+
 UCLASS()
 class ARK_API AWeaponBase : public AActor
 {
@@ -83,7 +90,14 @@ protected:
 	UFUNCTION()
 	void OnRep_AmmoInMagazine();
 
+	UFUNCTION()
+	void OnRep_WeaponState();
+
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	void SetWeaponState(EFPSWeaponNetState NewState);
+	void ApplyWeaponState();
+	void ApplyEquippedState();
+	void ApplyDroppedState();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<USkeletalMeshComponent> WeaponMesh;
@@ -109,6 +123,12 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon", ReplicatedUsing = OnRep_OwnerCharacter)
 	TObjectPtr<ABaseFPSCharacter> OwnerCharacter;
+
+	UPROPERTY(ReplicatedUsing = OnRep_WeaponState)
+	EFPSWeaponNetState WeaponState = EFPSWeaponNetState::Dropped;
+
+	UPROPERTY(Replicated)
+	FName EquippedSocketName = FName(TEXT("Weapon"));
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	EFPSWeaponSlot WeaponSlot = EFPSWeaponSlot::Primary;
@@ -193,7 +213,6 @@ protected:
 
 	bool bIsFiring = false;
 	bool bIsReloading = false;
-	bool bIsDropped = false;
 	FTimerHandle ReloadTimerHandle;
 	FTimerHandle RefireTimerHandle;
 	FTimerHandle SemiAutoFireGateTimerHandle;
