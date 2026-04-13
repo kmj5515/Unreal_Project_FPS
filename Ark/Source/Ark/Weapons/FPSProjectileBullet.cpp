@@ -110,7 +110,8 @@ void AFPSProjectileBullet::OnProjectileHit(
 				const FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(DamageGameplayEffect, 1.f, EffectContext);
 				if (SpecHandle.IsValid())
 				{
-					SpecHandle.Data->SetSetByCallerMagnitude(DamageSetByCallerTag, Damage);
+					const float DamageMultiplier = (Hit.BoneName == FName(TEXT("head"))) ? 2.0f : 1.0f;
+					SpecHandle.Data->SetSetByCallerMagnitude(DamageSetByCallerTag, Damage * DamageMultiplier);
 					SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
 				}
 			}

@@ -768,7 +768,8 @@ bool AWeaponBase::TryApplyGasDamageFromHit(const FHitResult& Hit)
 		return false;
 	}
 
-	SpecHandle.Data->SetSetByCallerMagnitude(DamageSetByCallerTag, Damage);
+	const float DamageMultiplier = (Hit.BoneName == FName(TEXT("head"))) ? 2.0f : 1.0f;
+	SpecHandle.Data->SetSetByCallerMagnitude(DamageSetByCallerTag, Damage * DamageMultiplier);
 
 	SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
 	return true;
