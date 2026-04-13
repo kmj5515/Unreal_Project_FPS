@@ -57,4 +57,8 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Animation")
 	TObjectPtr<UAnimMontage> ReloadMontage;
+
+	/** If set, played on the weapon mesh for the locally controlled owner (1P). Use when ReloadMontage targets the character skeleton and the owner mesh is not visible. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Animation")
+	TObjectPtr<UAnimMontage> FirstPersonReloadMontage;
 };

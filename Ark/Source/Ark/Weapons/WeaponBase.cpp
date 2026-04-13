@@ -80,6 +80,11 @@ void AWeaponBase::ApplyWeaponDataFromAsset()
 		ReloadMontage = WeaponData->ReloadMontage;
 	}
 
+	if (WeaponData->FirstPersonReloadMontage)
+	{
+		FirstPersonReloadMontage = WeaponData->FirstPersonReloadMontage;
+	}
+
 	MagazineSize = FMath::Max(1, WeaponData->MagazineSize);
 	AmmoInMagazine = FMath::Min(AmmoInMagazine, MagazineSize);
 }
@@ -195,7 +200,7 @@ void AWeaponBase::StartReload()
 	bIsReloading = true;
 	bIsFiring = false;
 	GetWorldTimerManager().ClearTimer(RefireTimerHandle);
-	Multicast_PlayReloadMontage();
+	Multicast_PlayReloadMontage(ReloadMontage, FirstPersonReloadMontage);
 	if (OwnerCharacter)
 	{
 		OwnerCharacter->NotifyReloadStarted();
@@ -391,9 +396,11 @@ void AWeaponBase::Multicast_PlayMuzzleFlash_Implementation()
 	}
 }
 
-void AWeaponBase::Multicast_PlayReloadMontage_Implementation()
+void AWeaponBase::Multicast_PlayReloadMontage_Implementation(UAnimMontage* MontageToPlay, UAnimMontage* OptionalFirstPersonMontage)
 {
-	if (GetNetMode() == NM_DedicatedServer || !OwnerCharacter || !ReloadMontage)
+	// Use RPC arguments for montages: ReloadMontage is not replicated; clients can have a null member even when
+	// the server has applied WeaponData, so relying on the UObject sent with the multicast fixes local playback.
+	if (GetNetMode() == NM_DedicatedServer || !OwnerCharacter || !MontageToPlay)
 	{
 		return;
 	}
@@ -404,9 +411,17 @@ void AWeaponBase::Multicast_PlayReloadMontage_Implementation()
 		return;
 	}
 
-	if (UAnimInstance* AnimInstance = OwnerMesh->GetAnimInstance())
+	UAnimInstance* OwnerAnim = OwnerMesh->GetAnimInstance();
+	if (!OwnerAnim)
 	{
-		AnimInstance->Montage_Play(ReloadMontage, 1.f);
+		return;
+	}
+
+	OwnerAnim->Montage_Play(MontageToPlay, 1.f);
+
+	if (OwnerCharacter->IsLocallyControlled() && OptionalFirstPersonMontage && WeaponMesh && WeaponMesh->GetAnimInstance())
+	{
+		WeaponMesh->GetAnimInstance()->Montage_Play(OptionalFirstPersonMontage, 1.f);
 	}
 }
 

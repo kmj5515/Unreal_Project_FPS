@@ -9,6 +9,7 @@
 #include "Animation/AnimMontage.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "EnhancedInputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -84,7 +85,7 @@ void ABaseFPSCharacter::BeginPlay()
 	if (HasAuthority())
 	{
 		SpawnDefaultLoadout();
-		EquipWeaponBySlot(EFPSWeaponSlot::Primary);
+		ApplyCurrentWeaponVisibility();
 	}
 }
 
@@ -425,8 +426,21 @@ void ABaseFPSCharacter::HandleDeathFromAuthority()
 	Multicast_OnDeath();
 }
 
+void ABaseFPSCharacter::FreezeDeathCameraIfLocal()
+{
+	if (!IsLocallyControlled() || !FirstPersonCamera)
+	{
+		return;
+	}
+
+	FirstPersonCamera->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+	FirstPersonCamera->bUsePawnControlRotation = false;
+}
+
 void ABaseFPSCharacter::Multicast_OnDeath_Implementation()
 {
+	FreezeDeathCameraIfLocal();
+
 	if (USkeletalMeshComponent* MeshComp = GetMesh())
 	{
 		if (IsLocallyControlled())
@@ -666,6 +680,11 @@ void ABaseFPSCharacter::BroadcastHUDHealth()
 void ABaseFPSCharacter::BroadcastHUDAmmo()
 {
 	HUDAmmoChanged.Broadcast(GetAmmoInMag(), GetMagSize());
+}
+
+void ABaseFPSCharacter::OnRep_PossessedWeapons()
+{
+	ApplyCurrentWeaponVisibility();
 }
 
 void ABaseFPSCharacter::OnRep_CurrentWeapon()

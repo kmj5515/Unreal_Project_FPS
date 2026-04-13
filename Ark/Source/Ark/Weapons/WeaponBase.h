@@ -59,7 +59,7 @@ protected:
 	void Multicast_PlayMuzzleFlash();
 
 	UFUNCTION(NetMulticast, Reliable)
-	void Multicast_PlayReloadMontage();
+	void Multicast_PlayReloadMontage(UAnimMontage* MontageToPlay, UAnimMontage* OptionalFirstPersonMontage);
 
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_OnReloadFinished();
@@ -137,6 +137,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Animation")
 	TObjectPtr<UAnimMontage> ReloadMontage;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Animation")
+	TObjectPtr<UAnimMontage> FirstPersonReloadMontage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Debug")
 	bool bDebugDrawTrace = false;

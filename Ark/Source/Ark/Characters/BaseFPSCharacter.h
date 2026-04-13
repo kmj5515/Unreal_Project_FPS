@@ -142,6 +142,7 @@ protected:
 	void BroadcastHUDHealth();
 	void BroadcastHUDAmmo();
 	void HandleDeathFromAuthority();
+	void FreezeDeathCameraIfLocal();
 	void ApplyMoveSpeed(float NewMoveSpeed);
 	void AttachViewCameraToMesh();
 	void SpawnDefaultLoadout();
@@ -164,6 +165,9 @@ protected:
 	void OnRep_CurrentWeapon();
 
 	UFUNCTION()
+	void OnRep_PossessedWeapons();
+
+	UFUNCTION()
 	void OnRep_Dead();
 
 	UFUNCTION()
@@ -184,13 +188,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
 	TSubclassOf<AWeaponBase> MeleeWeaponClass;
 
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing = OnRep_PossessedWeapons)
 	TObjectPtr<AWeaponBase> PrimaryWeapon;
 
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing = OnRep_PossessedWeapons)
 	TObjectPtr<AWeaponBase> SecondaryWeapon;
 
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing = OnRep_PossessedWeapons)
 	TObjectPtr<AWeaponBase> MeleeWeapon;
 
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentWeapon)
