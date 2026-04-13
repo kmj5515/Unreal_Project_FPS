@@ -16,6 +16,7 @@
 #include "GameFramework/PlayerController.h"
 #include "InputAction.h"
 #include "Net/UnrealNetwork.h"
+#include "CoreGlobals.h"
 
 ABaseFPSCharacter::ABaseFPSCharacter()
 {
@@ -75,6 +76,34 @@ void ABaseFPSCharacter::RequestReload()
 		return;
 	}
 	HandleReloadStarted();
+}
+
+void ABaseFPSCharacter::RequestPickupOverlappingWeapon()
+{
+	if (bDead)
+	{
+		return;
+	}
+
+	HandlePickupPressed();
+}
+
+void ABaseFPSCharacter::RequestDropCurrentWeapon()
+{
+	if (bDead)
+	{
+		return;
+	}
+
+	HandleDropPressed();
+}
+
+void ABaseFPSCharacter::SetOverlappingWeapon(AWeaponBase* InWeapon)
+{
+	if (HasAuthority())
+	{
+		OverlappingWeapon = InWeapon;
+	}
 }
 
 void ABaseFPSCharacter::BeginPlay()
@@ -181,6 +210,16 @@ void ABaseFPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 		if (ReloadAction)
 		{
 			EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Started, this, &ABaseFPSCharacter::HandleReloadStarted);
+		}
+
+		if (PickupAction)
+		{
+			EnhancedInputComponent->BindAction(PickupAction, ETriggerEvent::Started, this, &ABaseFPSCharacter::HandleInteractPressed);
+		}
+
+		if (DropAction)
+		{
+			EnhancedInputComponent->BindAction(DropAction, ETriggerEvent::Started, this, &ABaseFPSCharacter::HandleInteractPressed);
 		}
 	}
 }
@@ -324,6 +363,34 @@ void ABaseFPSCharacter::HandleReloadStarted()
 	}
 
 	ServerStartReload();
+}
+
+void ABaseFPSCharacter::HandlePickupPressed()
+{
+	HandleInteractPressed();
+}
+
+void ABaseFPSCharacter::HandleDropPressed()
+{
+	HandleInteractPressed();
+}
+
+void ABaseFPSCharacter::HandleInteractPressed()
+{
+	if (LastInteractInputFrame == GFrameCounter)
+	{
+		return;
+	}
+	LastInteractInputFrame = GFrameCounter;
+
+	if (OverlappingWeapon)
+	{
+		ServerPickupOverlappingWeapon();
+	}
+	else if (CurrentWeapon)
+	{
+		ServerDropCurrentWeapon();
+	}
 }
 
 void ABaseFPSCharacter::InitializeAbilityActorInfo()
@@ -613,6 +680,111 @@ void ABaseFPSCharacter::ServerStartReload_Implementation()
 	CurrentWeapon->StartReload();
 }
 
+void ABaseFPSCharacter::ServerPickupOverlappingWeapon_Implementation()
+{
+	if (bDead || !OverlappingWeapon)
+	{
+		return;
+	}
+
+	AWeaponBase* PickedWeapon = OverlappingWeapon;
+	OverlappingWeapon = nullptr;
+	const EFPSWeaponSlot Slot = PickedWeapon->GetWeaponSlot();
+
+	auto DropSlotWeapon = [this](TObjectPtr<AWeaponBase>& SlotWeapon)
+	{
+		if (!SlotWeapon)
+		{
+			return;
+		}
+
+		SlotWeapon->OnUnequipped();
+		SlotWeapon->SetDroppedState(true);
+		SlotWeapon = nullptr;
+	};
+
+	switch (Slot)
+	{
+	case EFPSWeaponSlot::Primary:
+		if (PrimaryWeapon == CurrentWeapon)
+		{
+			CurrentWeapon = nullptr;
+		}
+		DropSlotWeapon(PrimaryWeapon);
+		PrimaryWeapon = PickedWeapon;
+		break;
+	case EFPSWeaponSlot::Secondary:
+		if (SecondaryWeapon == CurrentWeapon)
+		{
+			CurrentWeapon = nullptr;
+		}
+		DropSlotWeapon(SecondaryWeapon);
+		SecondaryWeapon = PickedWeapon;
+		break;
+	case EFPSWeaponSlot::Melee:
+		if (MeleeWeapon == CurrentWeapon)
+		{
+			CurrentWeapon = nullptr;
+		}
+		DropSlotWeapon(MeleeWeapon);
+		MeleeWeapon = PickedWeapon;
+		break;
+	default:
+		return;
+	}
+
+	PickedWeapon->InitializeWeapon(this, Slot);
+	PickedWeapon->SetDroppedState(false);
+	EquipWeaponBySlot(Slot);
+}
+
+void ABaseFPSCharacter::ServerDropCurrentWeapon_Implementation()
+{
+	if (bDead || !CurrentWeapon)
+	{
+		return;
+	}
+
+	AWeaponBase* WeaponToDrop = CurrentWeapon;
+	const EFPSWeaponSlot Slot = CurrentWeaponSlot;
+	CurrentWeapon = nullptr;
+
+	switch (Slot)
+	{
+	case EFPSWeaponSlot::Primary:
+		PrimaryWeapon = nullptr;
+		break;
+	case EFPSWeaponSlot::Secondary:
+		SecondaryWeapon = nullptr;
+		break;
+	case EFPSWeaponSlot::Melee:
+		MeleeWeapon = nullptr;
+		break;
+	default:
+		break;
+	}
+
+	WeaponToDrop->OnUnequipped();
+	WeaponToDrop->SetDroppedState(true);
+
+	if (PrimaryWeapon)
+	{
+		EquipWeaponBySlot(EFPSWeaponSlot::Primary);
+	}
+	else if (SecondaryWeapon)
+	{
+		EquipWeaponBySlot(EFPSWeaponSlot::Secondary);
+	}
+	else if (MeleeWeapon)
+	{
+		EquipWeaponBySlot(EFPSWeaponSlot::Melee);
+	}
+	else
+	{
+		NotifyAmmoChangedValues(0, 0);
+	}
+}
+
 void ABaseFPSCharacter::NotifyReloadStarted()
 {
 	if (!AbilitySystemComponent)
@@ -700,6 +872,10 @@ void ABaseFPSCharacter::OnRep_CurrentWeapon()
 	}
 }
 
+void ABaseFPSCharacter::OnRep_OverlappingWeapon()
+{
+}
+
 void ABaseFPSCharacter::OnRep_HUDAmmoInMag()
 {
 	HUDAmmoChanged.Broadcast(HUDAmmoInMag, HUDMagSize);
@@ -718,6 +894,7 @@ void ABaseFPSCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME(ABaseFPSCharacter, SecondaryWeapon);
 	DOREPLIFETIME(ABaseFPSCharacter, MeleeWeapon);
 	DOREPLIFETIME(ABaseFPSCharacter, CurrentWeapon);
+	DOREPLIFETIME(ABaseFPSCharacter, OverlappingWeapon);
 	DOREPLIFETIME(ABaseFPSCharacter, CurrentWeaponSlot);
 	DOREPLIFETIME(ABaseFPSCharacter, bDead);
 	DOREPLIFETIME(ABaseFPSCharacter, HUDAmmoInMag);

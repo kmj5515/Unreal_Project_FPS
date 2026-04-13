@@ -31,6 +31,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Stats")
 	bool bFullAuto = true;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Stats")
+	bool bUseProjectileFire = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Stats", meta = (ClampMin = "100.0", Units = "cm/s"))
+	float ProjectileInitialSpeed = 12000.f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Melee", meta = (ClampMin = "0.0", Units = "cm"))
 	float MeleeRange = 160.f;
 
@@ -57,8 +63,4 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Animation")
 	TObjectPtr<UAnimMontage> ReloadMontage;
-
-	/** If set, played on the weapon mesh for the locally controlled owner (1P). Use when ReloadMontage targets the character skeleton and the owner mesh is not visible. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Animation")
-	TObjectPtr<UAnimMontage> FirstPersonReloadMontage;
 };

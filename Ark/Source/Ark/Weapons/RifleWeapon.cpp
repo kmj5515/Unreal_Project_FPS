@@ -7,4 +7,6 @@ ARifleWeapon::ARifleWeapon()
 	Range = 15000.f;
 	RefireRate = 0.10f;
 	bFullAuto = true;
+	FireMode = EFPSFireMode::Projectile;
+	ProjectileInitialSpeed = 14000.f;
 }

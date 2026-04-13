@@ -15,6 +15,16 @@ class UParticleSystem;
 class USoundBase;
 class UAnimMontage;
 class UStaticMesh;
+class USphereComponent;
+class UPrimitiveComponent;
+class AFPSProjectileBullet;
+
+UENUM(BlueprintType)
+enum class EFPSFireMode : uint8
+{
+	HitScan = 0,
+	Projectile
+};
 
 UCLASS()
 class ARK_API AWeaponBase : public AActor
@@ -31,6 +41,7 @@ public:
 	virtual void StartFire();
 	virtual void StopFire();
 	virtual void StartReload();
+	void SetDroppedState(bool bDropped);
 
 	UFUNCTION(BlueprintPure, Category = "Weapon|Ammo")
 	bool IsReloading() const { return bIsReloading; }
@@ -41,17 +52,22 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Weapon|Ammo")
 	int32 GetMagazineSize() const { return MagazineSize; }
 
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	EFPSWeaponSlot GetWeaponSlot() const { return WeaponSlot; }
+
 protected:
 	virtual void BeginPlay() override;
 	void ApplyWeaponDataFromAsset();
 
 	void FireOnce();
+	void ResetFireGate();
 	void FinishReload();
 	bool CanReload() const;
 	bool GetAimStartEnd(FVector& OutStart, FVector& OutEnd) const;
 	bool PerformHitscanTrace(FHitResult& OutHit, const FVector& Start, const FVector& End) const;
 	void ApplyPointDamageFromHit(const FHitResult& Hit);
 	bool TryApplyGasDamageFromHit(const FHitResult& Hit);
+	void SpawnProjectile(const FVector& Start, const FVector& End);
 
 	void PerformMeleeAttack();
 
@@ -59,7 +75,7 @@ protected:
 	void Multicast_PlayMuzzleFlash();
 
 	UFUNCTION(NetMulticast, Reliable)
-	void Multicast_PlayReloadMontage(UAnimMontage* MontageToPlay, UAnimMontage* OptionalFirstPersonMontage);
+	void Multicast_PlayReloadMontage(UAnimMontage* MontageToPlay);
 
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_OnReloadFinished();
@@ -74,6 +90,22 @@ protected:
 
 	UFUNCTION()
 	void OnRep_OwnerCharacter();
+
+	UFUNCTION()
+	void OnPickupSphereBeginOverlap(
+		UPrimitiveComponent* OverlappedComponent,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComp,
+		int32 OtherBodyIndex,
+		bool bFromSweep,
+		const FHitResult& SweepResult);
+
+	UFUNCTION()
+	void OnPickupSphereEndOverlap(
+		UPrimitiveComponent* OverlappedComponent,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComp,
+		int32 OtherBodyIndex);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon", ReplicatedUsing = OnRep_OwnerCharacter)
 	TObjectPtr<ABaseFPSCharacter> OwnerCharacter;
@@ -101,6 +133,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Stats")
 	bool bFullAuto = true;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Stats")
+	EFPSFireMode FireMode = EFPSFireMode::HitScan;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Melee", meta = (ClampMin = "0.0", Units = "cm"))
 	float MeleeRange = 160.f;
@@ -138,19 +173,30 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Animation")
 	TObjectPtr<UAnimMontage> ReloadMontage;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Animation")
-	TObjectPtr<UAnimMontage> FirstPersonReloadMontage;
-
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Debug")
 	bool bDebugDrawTrace = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Debug", meta = (ClampMin = "0.0"))
 	float DebugDrawDuration = 1.0f;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Pickup")
+	TObjectPtr<USphereComponent> PickupSphere;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Projectile")
+	TSubclassOf<AFPSProjectileBullet> ProjectileClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Projectile", meta = (ClampMin = "100.0", Units = "cm/s"))
+	float ProjectileInitialSpeed = 12000.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Drop", meta = (ClampMin = "0.0"))
+	float DropImpulseStrength = 250.f;
+
 	bool bIsFiring = false;
 	bool bIsReloading = false;
+	bool bIsDropped = false;
 	FTimerHandle ReloadTimerHandle;
 	FTimerHandle RefireTimerHandle;
+	FTimerHandle SemiAutoFireGateTimerHandle;
 
 	UPROPERTY(ReplicatedUsing = OnRep_AmmoInMagazine)
 	int32 AmmoInMagazine = 15;

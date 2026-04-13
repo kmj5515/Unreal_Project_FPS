@@ -46,6 +46,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void RequestReload();
 
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void RequestPickupOverlappingWeapon();
+
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void RequestDropCurrentWeapon();
+
+	void SetOverlappingWeapon(AWeaponBase* InWeapon);
+	AWeaponBase* GetOverlappingWeapon() const { return OverlappingWeapon; }
+
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	bool IsDead() const { return bDead; }
 
@@ -90,6 +99,9 @@ protected:
 	void HandleCrouchStarted();
 	void HandleCrouchStopped();
 	void HandleReloadStarted();
+	void HandlePickupPressed();
+	void HandleDropPressed();
+	void HandleInteractPressed();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UCameraComponent> FirstPersonCamera;
@@ -130,6 +142,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> ReloadAction;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> PickupAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> DropAction;
+
+	uint64 LastInteractInputFrame = MAX_uint64;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input", meta = (ClampMin = "0.01", ClampMax = "5.0"))
 	float LookSensitivityMultiplier = 0.5f;
 
@@ -158,11 +178,20 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerStartReload();
 
+	UFUNCTION(Server, Reliable)
+	void ServerPickupOverlappingWeapon();
+
+	UFUNCTION(Server, Reliable)
+	void ServerDropCurrentWeapon();
+
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_OnDeath();
 
 	UFUNCTION()
 	void OnRep_CurrentWeapon();
+
+	UFUNCTION()
+	void OnRep_OverlappingWeapon();
 
 	UFUNCTION()
 	void OnRep_PossessedWeapons();
@@ -199,6 +228,9 @@ protected:
 
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentWeapon)
 	TObjectPtr<AWeaponBase> CurrentWeapon;
+
+	UPROPERTY(ReplicatedUsing = OnRep_OverlappingWeapon)
+	TObjectPtr<AWeaponBase> OverlappingWeapon;
 
 	UPROPERTY(Replicated)
 	EFPSWeaponSlot CurrentWeaponSlot = EFPSWeaponSlot::Primary;

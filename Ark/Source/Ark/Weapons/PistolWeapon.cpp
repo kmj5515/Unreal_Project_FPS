@@ -7,4 +7,6 @@ APistolWeapon::APistolWeapon()
 	Range = 10000.f;
 	RefireRate = 0.22f;
 	bFullAuto = false;
+	FireMode = EFPSFireMode::Projectile;
+	ProjectileInitialSpeed = 11000.f;
 }

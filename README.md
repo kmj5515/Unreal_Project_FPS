@@ -14,6 +14,7 @@
 - 개발 로그(날짜별): `docs/DEVLOG/2026-04-07.md`, `docs/DEVLOG/2026-04-08.md`, `docs/DEVLOG/2026-04-09.md`, `docs/DEVLOG/2026-04-10.md`
 - 이슈(진행중): `docs/ISSUES/open.md`
 - 이슈(해결됨): `docs/ISSUES/resolved.md`
+- 무기 추가 가이드: `docs/WEAPONS/add-weapon-guide.md`
 
 ## 향후 로드맵 (메타 / UX 플로우)
 
