@@ -20,6 +20,8 @@
 #include "WeaponDataAsset.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/StaticMesh.h"
+#include "Components/SphereComponent.h"
+#include "FPSProjectileBullet.h"
 
 AWeaponBase::AWeaponBase()
 {
@@ -30,12 +32,31 @@ AWeaponBase::AWeaponBase()
 	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
 	RootComponent = WeaponMesh;
 	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	ProjectileClass = AFPSProjectileBullet::StaticClass();
+
+	PickupSphere = CreateDefaultSubobject<USphereComponent>(TEXT("PickupSphere"));
+	PickupSphere->SetupAttachment(RootComponent);
+	PickupSphere->SetSphereRadius(120.f);
+	PickupSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	PickupSphere->SetCollisionResponseToAllChannels(ECR_Ignore);
+	PickupSphere->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 }
 
 void AWeaponBase::BeginPlay()
 {
 	Super::BeginPlay();
 	ApplyWeaponDataFromAsset();
+
+	if (HasAuthority() && PickupSphere)
+	{
+		PickupSphere->OnComponentBeginOverlap.AddDynamic(this, &AWeaponBase::OnPickupSphereBeginOverlap);
+		PickupSphere->OnComponentEndOverlap.AddDynamic(this, &AWeaponBase::OnPickupSphereEndOverlap);
+	}
+
+	if (HasAuthority() && !OwnerCharacter && !GetOwner())
+	{
+		SetDroppedState(true);
+	}
 }
 
 void AWeaponBase::ApplyWeaponDataFromAsset()
@@ -49,6 +70,8 @@ void AWeaponBase::ApplyWeaponDataFromAsset()
 	Range = WeaponData->Range;
 	RefireRate = WeaponData->RefireRate;
 	bFullAuto = WeaponData->bFullAuto;
+	FireMode = WeaponData->bUseProjectileFire ? EFPSFireMode::Projectile : EFPSFireMode::HitScan;
+	ProjectileInitialSpeed = WeaponData->ProjectileInitialSpeed;
 	MeleeRange = WeaponData->MeleeRange;
 	MeleeRadius = WeaponData->MeleeRadius;
 
@@ -80,11 +103,6 @@ void AWeaponBase::ApplyWeaponDataFromAsset()
 		ReloadMontage = WeaponData->ReloadMontage;
 	}
 
-	if (WeaponData->FirstPersonReloadMontage)
-	{
-		FirstPersonReloadMontage = WeaponData->FirstPersonReloadMontage;
-	}
-
 	MagazineSize = FMath::Max(1, WeaponData->MagazineSize);
 	AmmoInMagazine = FMath::Min(AmmoInMagazine, MagazineSize);
 }
@@ -108,6 +126,8 @@ void AWeaponBase::OnEquipped(const FName& AttachSocketName)
 		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
 		AttachSocketName);
 
+	SetDroppedState(false);
+
 	OwnerCharacter->NotifyAmmoChangedValues(AmmoInMagazine, MagazineSize);
 }
 
@@ -116,6 +136,8 @@ void AWeaponBase::OnUnequipped()
 	StopFire();
 	bIsReloading = false;
 	GetWorldTimerManager().ClearTimer(ReloadTimerHandle);
+	GetWorldTimerManager().ClearTimer(SemiAutoFireGateTimerHandle);
+	bIsFiring = false;
 	if (HasAuthority())
 	{
 		Multicast_OnReloadFinished();
@@ -123,6 +145,38 @@ void AWeaponBase::OnUnequipped()
 	if (OwnerCharacter)
 	{
 		OwnerCharacter->NotifyReloadFinished();
+	}
+}
+
+void AWeaponBase::SetDroppedState(bool bDropped)
+{
+	bIsDropped = bDropped;
+
+	if (bDropped)
+	{
+		DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		SetOwner(nullptr);
+		OwnerCharacter = nullptr;
+		WeaponMesh->SetSimulatePhysics(true);
+		WeaponMesh->SetEnableGravity(true);
+		WeaponMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		WeaponMesh->SetCollisionResponseToAllChannels(ECR_Block);
+		WeaponMesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+		WeaponMesh->AddImpulse(GetActorForwardVector() * DropImpulseStrength, NAME_None, true);
+
+		if (HasAuthority() && PickupSphere)
+		{
+			PickupSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		}
+		return;
+	}
+
+	WeaponMesh->SetSimulatePhysics(false);
+	WeaponMesh->SetEnableGravity(false);
+	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	if (PickupSphere)
+	{
+		PickupSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 }
 
@@ -167,6 +221,11 @@ void AWeaponBase::StartFire()
 	{
 		GetWorldTimerManager().SetTimer(RefireTimerHandle, this, &AWeaponBase::FireOnce, RefireRate, true);
 	}
+	else
+	{
+		// Semi-auto weapons also need a fire gate based on RefireRate.
+		GetWorldTimerManager().SetTimer(SemiAutoFireGateTimerHandle, this, &AWeaponBase::ResetFireGate, RefireRate, false);
+	}
 }
 
 void AWeaponBase::StopFire()
@@ -176,8 +235,11 @@ void AWeaponBase::StopFire()
 		return;
 	}
 
-	bIsFiring = false;
-	GetWorldTimerManager().ClearTimer(RefireTimerHandle);
+	if (bFullAuto)
+	{
+		bIsFiring = false;
+		GetWorldTimerManager().ClearTimer(RefireTimerHandle);
+	}
 }
 
 void AWeaponBase::StartReload()
@@ -200,7 +262,8 @@ void AWeaponBase::StartReload()
 	bIsReloading = true;
 	bIsFiring = false;
 	GetWorldTimerManager().ClearTimer(RefireTimerHandle);
-	Multicast_PlayReloadMontage(ReloadMontage, FirstPersonReloadMontage);
+	GetWorldTimerManager().ClearTimer(SemiAutoFireGateTimerHandle);
+	Multicast_PlayReloadMontage(ReloadMontage);
 	if (OwnerCharacter)
 	{
 		OwnerCharacter->NotifyReloadStarted();
@@ -259,7 +322,11 @@ void AWeaponBase::FireOnce()
 	}
 
 	FHitResult Hit;
-	if (PerformHitscanTrace(Hit, Start, End) && Hit.GetActor())
+	if (FireMode == EFPSFireMode::Projectile)
+	{
+		SpawnProjectile(Start, End);
+	}
+	else if (PerformHitscanTrace(Hit, Start, End) && Hit.GetActor())
 	{
 		UE_LOG(LogTemp, Log, TEXT("[WeaponFire] Hit: %s -> %s"), *GetName(), *Hit.GetActor()->GetName());
 		if (!TryApplyGasDamageFromHit(Hit))
@@ -270,6 +337,37 @@ void AWeaponBase::FireOnce()
 	else
 	{
 		UE_LOG(LogTemp, Log, TEXT("[WeaponFire] Miss: %s"), *GetName());
+	}
+}
+
+void AWeaponBase::SpawnProjectile(const FVector& Start, const FVector& End)
+{
+	if (!GetWorld() || !ProjectileClass)
+	{
+		return;
+	}
+
+	const FVector SpawnLocation = (WeaponMesh && WeaponMesh->DoesSocketExist(MuzzleSocketName))
+		? WeaponMesh->GetSocketLocation(MuzzleSocketName)
+		: Start;
+	const FVector ToTarget = (End - SpawnLocation).GetSafeNormal();
+	if (ToTarget.IsNearlyZero())
+	{
+		return;
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = this;
+	SpawnParams.Instigator = Cast<APawn>(OwnerCharacter);
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	if (AFPSProjectileBullet* Projectile = GetWorld()->SpawnActor<AFPSProjectileBullet>(
+		ProjectileClass,
+		SpawnLocation,
+		ToTarget.Rotation(),
+		SpawnParams))
+	{
+		Projectile->InitializeProjectile(Damage, ProjectileInitialSpeed, OwnerCharacter);
 	}
 }
 
@@ -291,6 +389,11 @@ void AWeaponBase::FinishReload()
 	{
 		OwnerCharacter->NotifyReloadFinished();
 	}
+}
+
+void AWeaponBase::ResetFireGate()
+{
+	bIsFiring = false;
 }
 
 bool AWeaponBase::CanReload() const
@@ -394,9 +497,10 @@ void AWeaponBase::Multicast_PlayMuzzleFlash_Implementation()
 			FVector::ZeroVector,
 			EAttachLocation::SnapToTarget);
 	}
+
 }
 
-void AWeaponBase::Multicast_PlayReloadMontage_Implementation(UAnimMontage* MontageToPlay, UAnimMontage* OptionalFirstPersonMontage)
+void AWeaponBase::Multicast_PlayReloadMontage_Implementation(UAnimMontage* MontageToPlay)
 {
 	// Use RPC arguments for montages: ReloadMontage is not replicated; clients can have a null member even when
 	// the server has applied WeaponData, so relying on the UObject sent with the multicast fixes local playback.
@@ -418,11 +522,6 @@ void AWeaponBase::Multicast_PlayReloadMontage_Implementation(UAnimMontage* Monta
 	}
 
 	OwnerAnim->Montage_Play(MontageToPlay, 1.f);
-
-	if (OwnerCharacter->IsLocallyControlled() && OptionalFirstPersonMontage && WeaponMesh && WeaponMesh->GetAnimInstance())
-	{
-		WeaponMesh->GetAnimInstance()->Montage_Play(OptionalFirstPersonMontage, 1.f);
-	}
 }
 
 void AWeaponBase::Multicast_OnReloadFinished_Implementation()
@@ -650,5 +749,40 @@ void AWeaponBase::OnRep_OwnerCharacter()
 	if (OwnerCharacter)
 	{
 		OwnerCharacter->NotifyAmmoChangedValues(AmmoInMagazine, MagazineSize);
+	}
+}
+
+void AWeaponBase::OnPickupSphereBeginOverlap(
+	UPrimitiveComponent* OverlappedComponent,
+	AActor* OtherActor,
+	UPrimitiveComponent* OtherComp,
+	int32 OtherBodyIndex,
+	bool bFromSweep,
+	const FHitResult& SweepResult)
+{
+	ABaseFPSCharacter* OverlapCharacter = Cast<ABaseFPSCharacter>(OtherActor);
+	if (!OverlapCharacter || !bIsDropped)
+	{
+		return;
+	}
+
+	OverlapCharacter->SetOverlappingWeapon(this);
+}
+
+void AWeaponBase::OnPickupSphereEndOverlap(
+	UPrimitiveComponent* OverlappedComponent,
+	AActor* OtherActor,
+	UPrimitiveComponent* OtherComp,
+	int32 OtherBodyIndex)
+{
+	ABaseFPSCharacter* OverlapCharacter = Cast<ABaseFPSCharacter>(OtherActor);
+	if (!OverlapCharacter)
+	{
+		return;
+	}
+
+	if (OverlapCharacter->GetOverlappingWeapon() == this)
+	{
+		OverlapCharacter->SetOverlappingWeapon(nullptr);
 	}
 }

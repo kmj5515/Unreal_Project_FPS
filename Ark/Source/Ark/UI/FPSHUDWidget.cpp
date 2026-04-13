@@ -89,8 +89,9 @@ void UFPSHUDWidget::HandleAmmoChanged(int32 CurrentInMag, int32 InMagSize)
 
 void UFPSHUDWidget::UnbindCharacterDelegates()
 {
-	if (!BoundCharacter)
+	if (!IsValid(BoundCharacter))
 	{
+		BoundCharacter = nullptr;
 		return;
 	}
 
