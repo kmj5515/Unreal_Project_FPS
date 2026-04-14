@@ -8,10 +8,10 @@
 
 - 공통 베이스: `AWeaponBase`
 - 슬롯: `Primary`, `Secondary`, `Melee`
-- 캐릭터 장착 클래스:
-  - `ABaseFPSCharacter::PrimaryWeaponClass`
-  - `ABaseFPSCharacter::SecondaryWeaponClass`
-  - `ABaseFPSCharacter::MeleeWeaponClass`
+- 캐릭터 장착 클래스(기본 로드아웃, `UFPSCombatComponent`):
+  - `PrimaryWeaponClass`
+  - `SecondaryWeaponClass`
+  - `MeleeWeaponClass`
 - 발사 모드:
   - 히트스캔 (`EFPSFireMode::HitScan`)
   - 발사체 (`EFPSFireMode::Projectile`)
@@ -84,7 +84,7 @@ ASniperWeapon::ASniperWeapon()
 
 ## 4) 캐릭터에 장착(기본 로드아웃)
 
-캐릭터 BP `Class Defaults`에서 설정:
+캐릭터 BP `Class Defaults` → **Components** → `CombatComponent`에서 설정:
 
 - `PrimaryWeaponClass`
 - `SecondaryWeaponClass`
@@ -92,7 +92,7 @@ ASniperWeapon::ASniperWeapon()
 
 중요:
 
-- `PrimaryWeaponClass` 등은 `EditDefaultsOnly`이므로, 레벨 인스턴스가 아니라 **클래스 기본값(Class Defaults)**에서 넣어야 한다.
+- 위 항목들은 `EditDefaultsOnly`이므로, 레벨 인스턴스가 아니라 **클래스 기본값(Class Defaults)**에서 넣어야 한다.
 
 ---
 

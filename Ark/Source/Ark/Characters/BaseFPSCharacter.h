@@ -3,6 +3,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "InputActionValue.h"
+#include "../Weapons/FPSWeaponTypes.h"
+#include "../Components/FPSCombatComponent.h"
 #include "BaseFPSCharacter.generated.h"
 
 class UCameraComponent;
@@ -16,14 +18,6 @@ class UFPSHUDWidget;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FFPSHUDHealthChangedSignature, float, float);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FFPSHUDAmmoChangedSignature, int32, int32);
-
-UENUM(BlueprintType)
-enum class EFPSWeaponSlot : uint8
-{
-	Primary = 0,
-	Secondary,
-	Melee
-};
 
 UCLASS()
 class ARK_API ABaseFPSCharacter : public ACharacter
@@ -53,7 +47,7 @@ public:
 	void RequestDropCurrentWeapon();
 
 	void SetOverlappingWeapon(AWeaponBase* InWeapon);
-	AWeaponBase* GetOverlappingWeapon() const { return OverlappingWeapon; }
+	AWeaponBase* GetOverlappingWeapon() const;
 
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	bool IsDead() const { return bDead; }
@@ -81,6 +75,11 @@ public:
 	FFPSHUDHealthChangedSignature& OnHUDHealthChanged() { return HUDHealthChanged; }
 	FFPSHUDAmmoChangedSignature& OnHUDAmmoChanged() { return HUDAmmoChanged; }
 
+	void BroadcastHUDAmmoDirect(int32 AmmoInMag, int32 MagSize);
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+	TObjectPtr<UFPSCombatComponent> CombatComponent;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void PossessedBy(AController* NewController) override;
@@ -99,8 +98,6 @@ protected:
 	void HandleCrouchStarted();
 	void HandleCrouchStopped();
 	void HandleReloadStarted();
-	void HandlePickupPressed();
-	void HandleDropPressed();
 	void HandleInteractPressed();
 	void HandleServerInteract();
 
@@ -166,24 +163,6 @@ protected:
 	void FreezeDeathCameraIfLocal();
 	void ApplyMoveSpeed(float NewMoveSpeed);
 	void AttachViewCameraToMesh();
-	void SpawnDefaultLoadout();
-	void EquipWeaponBySlot(EFPSWeaponSlot Slot);
-	void ApplyCurrentWeaponVisibility();
-
-	UFUNCTION(Server, Reliable)
-	void ServerEquipWeapon(EFPSWeaponSlot Slot);
-
-	UFUNCTION(Server, Reliable)
-	void ServerSetFiring(bool bNewFiring);
-
-	UFUNCTION(Server, Reliable)
-	void ServerStartReload();
-
-	UFUNCTION(Server, Reliable)
-	void ServerPickupOverlappingWeapon();
-
-	UFUNCTION(Server, Reliable)
-	void ServerDropCurrentWeapon();
 
 	UFUNCTION(Server, Reliable)
 	void ServerInteract();
@@ -192,61 +171,10 @@ protected:
 	void Multicast_OnDeath();
 
 	UFUNCTION()
-	void OnRep_CurrentWeapon();
-
-	UFUNCTION()
-	void OnRep_OverlappingWeapon();
-
-	UFUNCTION()
-	void OnRep_PossessedWeapons();
-
-	UFUNCTION()
 	void OnRep_Dead();
-
-	UFUNCTION()
-	void OnRep_HUDAmmoInMag();
-
-	UFUNCTION()
-	void OnRep_HUDMagSize();
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
-	FName WeaponAttachSocketName = FName(TEXT("Weapon"));
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
-	TSubclassOf<AWeaponBase> PrimaryWeaponClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
-	TSubclassOf<AWeaponBase> SecondaryWeaponClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
-	TSubclassOf<AWeaponBase> MeleeWeaponClass;
-
-	UPROPERTY(ReplicatedUsing = OnRep_PossessedWeapons)
-	TObjectPtr<AWeaponBase> PrimaryWeapon;
-
-	UPROPERTY(ReplicatedUsing = OnRep_PossessedWeapons)
-	TObjectPtr<AWeaponBase> SecondaryWeapon;
-
-	UPROPERTY(ReplicatedUsing = OnRep_PossessedWeapons)
-	TObjectPtr<AWeaponBase> MeleeWeapon;
-
-	UPROPERTY(ReplicatedUsing = OnRep_CurrentWeapon)
-	TObjectPtr<AWeaponBase> CurrentWeapon;
-
-	UPROPERTY(ReplicatedUsing = OnRep_OverlappingWeapon)
-	TObjectPtr<AWeaponBase> OverlappingWeapon;
-
-	UPROPERTY(Replicated)
-	EFPSWeaponSlot CurrentWeaponSlot = EFPSWeaponSlot::Primary;
 
 	UPROPERTY(ReplicatedUsing = OnRep_Dead, BlueprintReadOnly, Category = "Combat")
 	bool bDead = false;
-
-	UPROPERTY(ReplicatedUsing = OnRep_HUDAmmoInMag)
-	int32 HUDAmmoInMag = 0;
-
-	UPROPERTY(ReplicatedUsing = OnRep_HUDMagSize)
-	int32 HUDMagSize = 0;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat")
 	TObjectPtr<UAnimMontage> DeathMontage;

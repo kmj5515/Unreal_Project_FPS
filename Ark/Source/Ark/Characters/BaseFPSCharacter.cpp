@@ -36,6 +36,8 @@ ABaseFPSCharacter::ABaseFPSCharacter()
 	GetCharacterMovement()->AirControl = 0.35f;
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
 
+	CombatComponent = CreateDefaultSubobject<UFPSCombatComponent>(TEXT("CombatComponent"));
+
 	FirstPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
 	FirstPersonCamera->SetupAttachment(GetCapsuleComponent());
 	FirstPersonCamera->SetRelativeLocation(FVector(0.f, 0.f, 64.f));
@@ -48,7 +50,10 @@ void ABaseFPSCharacter::RequestEquipWeaponSlot(EFPSWeaponSlot Slot)
 	{
 		return;
 	}
-	EquipWeaponBySlot(Slot);
+	if (CombatComponent)
+	{
+		CombatComponent->RequestEquipWeaponSlot(Slot);
+	}
 }
 
 void ABaseFPSCharacter::RequestStartFire()
@@ -57,7 +62,10 @@ void ABaseFPSCharacter::RequestStartFire()
 	{
 		return;
 	}
-	HandleFireStarted();
+	if (CombatComponent)
+	{
+		CombatComponent->RequestStartFire();
+	}
 }
 
 void ABaseFPSCharacter::RequestStopFire()
@@ -66,7 +74,10 @@ void ABaseFPSCharacter::RequestStopFire()
 	{
 		return;
 	}
-	HandleFireStopped();
+	if (CombatComponent)
+	{
+		CombatComponent->RequestStopFire();
+	}
 }
 
 void ABaseFPSCharacter::RequestReload()
@@ -75,7 +86,10 @@ void ABaseFPSCharacter::RequestReload()
 	{
 		return;
 	}
-	HandleReloadStarted();
+	if (CombatComponent)
+	{
+		CombatComponent->RequestReload();
+	}
 }
 
 void ABaseFPSCharacter::RequestPickupOverlappingWeapon()
@@ -85,7 +99,7 @@ void ABaseFPSCharacter::RequestPickupOverlappingWeapon()
 		return;
 	}
 
-	HandlePickupPressed();
+	HandleInteractPressed();
 }
 
 void ABaseFPSCharacter::RequestDropCurrentWeapon()
@@ -95,27 +109,26 @@ void ABaseFPSCharacter::RequestDropCurrentWeapon()
 		return;
 	}
 
-	HandleDropPressed();
+	HandleInteractPressed();
 }
 
 void ABaseFPSCharacter::SetOverlappingWeapon(AWeaponBase* InWeapon)
 {
-	if (HasAuthority())
+	if (CombatComponent)
 	{
-		OverlappingWeapon = InWeapon;
+		CombatComponent->SetOverlappingWeapon(InWeapon);
 	}
+}
+
+AWeaponBase* ABaseFPSCharacter::GetOverlappingWeapon() const
+{
+	return CombatComponent ? CombatComponent->GetOverlappingWeapon() : nullptr;
 }
 
 void ABaseFPSCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	AttachViewCameraToMesh();
-
-	if (HasAuthority())
-	{
-		SpawnDefaultLoadout();
-		ApplyCurrentWeaponVisibility();
-	}
 }
 
 void ABaseFPSCharacter::AttachViewCameraToMesh()
@@ -286,7 +299,10 @@ void ABaseFPSCharacter::HandleEquipPrimary()
 	{
 		return;
 	}
-	EquipWeaponBySlot(EFPSWeaponSlot::Primary);
+	if (CombatComponent)
+	{
+		CombatComponent->HandleEquipPrimary();
+	}
 }
 
 void ABaseFPSCharacter::HandleEquipSecondary()
@@ -295,7 +311,10 @@ void ABaseFPSCharacter::HandleEquipSecondary()
 	{
 		return;
 	}
-	EquipWeaponBySlot(EFPSWeaponSlot::Secondary);
+	if (CombatComponent)
+	{
+		CombatComponent->HandleEquipSecondary();
+	}
 }
 
 void ABaseFPSCharacter::HandleEquipMelee()
@@ -304,7 +323,10 @@ void ABaseFPSCharacter::HandleEquipMelee()
 	{
 		return;
 	}
-	EquipWeaponBySlot(EFPSWeaponSlot::Melee);
+	if (CombatComponent)
+	{
+		CombatComponent->HandleEquipMelee();
+	}
 }
 
 void ABaseFPSCharacter::HandleCrouchStarted()
@@ -331,13 +353,10 @@ void ABaseFPSCharacter::HandleFireStarted()
 	{
 		return;
 	}
-	if (HasAuthority())
+	if (CombatComponent)
 	{
-		ServerSetFiring(true);
-		return;
+		CombatComponent->HandleFireStarted();
 	}
-
-	ServerSetFiring(true);
 }
 
 void ABaseFPSCharacter::HandleFireStopped()
@@ -346,13 +365,10 @@ void ABaseFPSCharacter::HandleFireStopped()
 	{
 		return;
 	}
-	if (HasAuthority())
+	if (CombatComponent)
 	{
-		ServerSetFiring(false);
-		return;
+		CombatComponent->HandleFireStopped();
 	}
-
-	ServerSetFiring(false);
 }
 
 void ABaseFPSCharacter::HandleReloadStarted()
@@ -361,18 +377,10 @@ void ABaseFPSCharacter::HandleReloadStarted()
 	{
 		return;
 	}
-
-	ServerStartReload();
-}
-
-void ABaseFPSCharacter::HandlePickupPressed()
-{
-	HandleInteractPressed();
-}
-
-void ABaseFPSCharacter::HandleDropPressed()
-{
-	HandleInteractPressed();
+	if (CombatComponent)
+	{
+		CombatComponent->HandleReloadStarted();
+	}
 }
 
 void ABaseFPSCharacter::HandleInteractPressed()
@@ -395,15 +403,9 @@ void ABaseFPSCharacter::HandleInteractPressed()
 
 void ABaseFPSCharacter::HandleServerInteract()
 {
-	if (OverlappingWeapon)
+	if (CombatComponent)
 	{
-		ServerPickupOverlappingWeapon();
-		return;
-	}
-
-	if (CurrentWeapon)
-	{
-		ServerDropCurrentWeapon();
+		CombatComponent->HandleServerInteract();
 	}
 }
 
@@ -484,9 +486,9 @@ void ABaseFPSCharacter::HandleDeathFromAuthority()
 		AbilitySystemComponent->CancelAllAbilities();
 	}
 
-	if (CurrentWeapon)
+	if (CombatComponent)
 	{
-		CurrentWeapon->StopFire();
+		CombatComponent->StopCurrentWeaponFire();
 	}
 	NotifyReloadFinished();
 	BroadcastHUDHealth();
@@ -553,252 +555,6 @@ void ABaseFPSCharacter::ApplyMoveSpeed(float NewMoveSpeed)
 	}
 }
 
-void ABaseFPSCharacter::SpawnDefaultLoadout()
-{
-	auto SpawnWeapon = [this](TSubclassOf<AWeaponBase> WeaponClass, EFPSWeaponSlot Slot) -> AWeaponBase*
-	{
-		if (!WeaponClass)
-		{
-			return nullptr;
-		}
-
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Owner = this;
-		SpawnParams.Instigator = this;
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-		AWeaponBase* SpawnedWeapon = GetWorld()->SpawnActor<AWeaponBase>(WeaponClass, GetActorTransform(), SpawnParams);
-		if (SpawnedWeapon)
-		{
-			SpawnedWeapon->InitializeWeapon(this, Slot);
-		}
-
-		return SpawnedWeapon;
-	};
-
-	PrimaryWeapon = SpawnWeapon(PrimaryWeaponClass, EFPSWeaponSlot::Primary);
-	SecondaryWeapon = SpawnWeapon(SecondaryWeaponClass, EFPSWeaponSlot::Secondary);
-	MeleeWeapon = SpawnWeapon(MeleeWeaponClass, EFPSWeaponSlot::Melee);
-}
-
-void ABaseFPSCharacter::EquipWeaponBySlot(EFPSWeaponSlot Slot)
-{
-	if (bDead)
-	{
-		return;
-	}
-
-	if (!HasAuthority())
-	{
-		ServerEquipWeapon(Slot);
-		return;
-	}
-
-	AWeaponBase* WeaponToEquip = nullptr;
-	switch (Slot)
-	{
-	case EFPSWeaponSlot::Primary:
-		WeaponToEquip = PrimaryWeapon;
-		break;
-	case EFPSWeaponSlot::Secondary:
-		WeaponToEquip = SecondaryWeapon;
-		break;
-	case EFPSWeaponSlot::Melee:
-		WeaponToEquip = MeleeWeapon;
-		break;
-	default:
-		break;
-	}
-
-	if (!WeaponToEquip)
-	{
-		return;
-	}
-
-	if (CurrentWeapon == WeaponToEquip)
-	{
-		return;
-	}
-
-	if (CurrentWeapon)
-	{
-		CurrentWeapon->OnUnequipped();
-	}
-
-	CurrentWeapon = WeaponToEquip;
-	CurrentWeaponSlot = Slot;
-	CurrentWeapon->OnEquipped(WeaponAttachSocketName);
-	ApplyCurrentWeaponVisibility();
-	BroadcastHUDAmmo();
-}
-
-void ABaseFPSCharacter::ApplyCurrentWeaponVisibility()
-{
-	AWeaponBase* AllWeapons[] = { PrimaryWeapon, SecondaryWeapon, MeleeWeapon };
-	for (AWeaponBase* Weapon : AllWeapons)
-	{
-		if (!Weapon)
-		{
-			continue;
-		}
-
-		const bool bIsCurrent = (Weapon == CurrentWeapon);
-		Weapon->SetActorHiddenInGame(!bIsCurrent);
-		Weapon->SetActorEnableCollision(bIsCurrent);
-	}
-}
-
-void ABaseFPSCharacter::ServerEquipWeapon_Implementation(EFPSWeaponSlot Slot)
-{
-	if (bDead)
-	{
-		return;
-	}
-	EquipWeaponBySlot(Slot);
-}
-
-void ABaseFPSCharacter::ServerSetFiring_Implementation(bool bNewFiring)
-{
-	if (bDead)
-	{
-		return;
-	}
-
-	if (!CurrentWeapon)
-	{
-		return;
-	}
-
-	if (CurrentWeapon->IsReloading() && bNewFiring)
-	{
-		return;
-	}
-
-	if (bNewFiring)
-	{
-		CurrentWeapon->StartFire();
-	}
-	else
-	{
-		CurrentWeapon->StopFire();
-	}
-}
-
-void ABaseFPSCharacter::ServerStartReload_Implementation()
-{
-	if (bDead || !CurrentWeapon)
-	{
-		return;
-	}
-
-	CurrentWeapon->StartReload();
-}
-
-void ABaseFPSCharacter::ServerPickupOverlappingWeapon_Implementation()
-{
-	if (bDead || !OverlappingWeapon)
-	{
-		return;
-	}
-
-	AWeaponBase* PickedWeapon = OverlappingWeapon;
-	OverlappingWeapon = nullptr;
-	const EFPSWeaponSlot Slot = PickedWeapon->GetWeaponSlot();
-
-	auto DropSlotWeapon = [this](TObjectPtr<AWeaponBase>& SlotWeapon)
-	{
-		if (!SlotWeapon)
-		{
-			return;
-		}
-
-		SlotWeapon->OnUnequipped();
-		SlotWeapon->SetDroppedState(true);
-		SlotWeapon = nullptr;
-	};
-
-	switch (Slot)
-	{
-	case EFPSWeaponSlot::Primary:
-		if (PrimaryWeapon == CurrentWeapon)
-		{
-			CurrentWeapon = nullptr;
-		}
-		DropSlotWeapon(PrimaryWeapon);
-		PrimaryWeapon = PickedWeapon;
-		break;
-	case EFPSWeaponSlot::Secondary:
-		if (SecondaryWeapon == CurrentWeapon)
-		{
-			CurrentWeapon = nullptr;
-		}
-		DropSlotWeapon(SecondaryWeapon);
-		SecondaryWeapon = PickedWeapon;
-		break;
-	case EFPSWeaponSlot::Melee:
-		if (MeleeWeapon == CurrentWeapon)
-		{
-			CurrentWeapon = nullptr;
-		}
-		DropSlotWeapon(MeleeWeapon);
-		MeleeWeapon = PickedWeapon;
-		break;
-	default:
-		return;
-	}
-
-	PickedWeapon->InitializeWeapon(this, Slot);
-	PickedWeapon->SetDroppedState(false);
-	EquipWeaponBySlot(Slot);
-}
-
-void ABaseFPSCharacter::ServerDropCurrentWeapon_Implementation()
-{
-	if (bDead || !CurrentWeapon)
-	{
-		return;
-	}
-
-	AWeaponBase* WeaponToDrop = CurrentWeapon;
-	const EFPSWeaponSlot Slot = CurrentWeaponSlot;
-	CurrentWeapon = nullptr;
-
-	switch (Slot)
-	{
-	case EFPSWeaponSlot::Primary:
-		PrimaryWeapon = nullptr;
-		break;
-	case EFPSWeaponSlot::Secondary:
-		SecondaryWeapon = nullptr;
-		break;
-	case EFPSWeaponSlot::Melee:
-		MeleeWeapon = nullptr;
-		break;
-	default:
-		break;
-	}
-
-	WeaponToDrop->OnUnequipped();
-	WeaponToDrop->SetDroppedState(true);
-
-	if (PrimaryWeapon)
-	{
-		EquipWeaponBySlot(EFPSWeaponSlot::Primary);
-	}
-	else if (SecondaryWeapon)
-	{
-		EquipWeaponBySlot(EFPSWeaponSlot::Secondary);
-	}
-	else if (MeleeWeapon)
-	{
-		EquipWeaponBySlot(EFPSWeaponSlot::Melee);
-	}
-	else
-	{
-		NotifyAmmoChangedValues(0, 0);
-	}
-}
-
 void ABaseFPSCharacter::ServerInteract_Implementation()
 {
 	if (bDead)
@@ -836,16 +592,10 @@ void ABaseFPSCharacter::NotifyAmmoChanged()
 
 void ABaseFPSCharacter::NotifyAmmoChangedValues(int32 CurrentInMag, int32 InMagSize)
 {
-	const int32 NewAmmo = FMath::Max(0, CurrentInMag);
-	const int32 NewMagSize = FMath::Max(0, InMagSize);
-
-	if (HasAuthority())
+	if (CombatComponent)
 	{
-		HUDAmmoInMag = NewAmmo;
-		HUDMagSize = NewMagSize;
+		CombatComponent->NotifyAmmoChangedValues(CurrentInMag, InMagSize);
 	}
-
-	HUDAmmoChanged.Broadcast(NewAmmo, NewMagSize);
 }
 
 float ABaseFPSCharacter::GetHealthCurrent() const
@@ -860,12 +610,12 @@ float ABaseFPSCharacter::GetHealthMax() const
 
 int32 ABaseFPSCharacter::GetAmmoInMag() const
 {
-	return HUDAmmoInMag;
+	return CombatComponent ? CombatComponent->GetAmmoInMag() : 0;
 }
 
 int32 ABaseFPSCharacter::GetMagSize() const
 {
-	return HUDMagSize;
+	return CombatComponent ? CombatComponent->GetMagSize() : 0;
 }
 
 void ABaseFPSCharacter::BroadcastHUDHealth()
@@ -878,49 +628,14 @@ void ABaseFPSCharacter::BroadcastHUDAmmo()
 	HUDAmmoChanged.Broadcast(GetAmmoInMag(), GetMagSize());
 }
 
-void ABaseFPSCharacter::OnRep_PossessedWeapons()
+void ABaseFPSCharacter::BroadcastHUDAmmoDirect(int32 AmmoInMag, int32 MagSize)
 {
-	ApplyCurrentWeaponVisibility();
-}
-
-void ABaseFPSCharacter::OnRep_CurrentWeapon()
-{
-	ApplyCurrentWeaponVisibility();
-	if (CurrentWeapon)
-	{
-		NotifyAmmoChangedValues(CurrentWeapon->GetCurrentAmmoInMagazine(), CurrentWeapon->GetMagazineSize());
-	}
-	else
-	{
-		NotifyAmmoChangedValues(0, 0);
-	}
-}
-
-void ABaseFPSCharacter::OnRep_OverlappingWeapon()
-{
-}
-
-void ABaseFPSCharacter::OnRep_HUDAmmoInMag()
-{
-	HUDAmmoChanged.Broadcast(HUDAmmoInMag, HUDMagSize);
-}
-
-void ABaseFPSCharacter::OnRep_HUDMagSize()
-{
-	HUDAmmoChanged.Broadcast(HUDAmmoInMag, HUDMagSize);
+	HUDAmmoChanged.Broadcast(AmmoInMag, MagSize);
 }
 
 void ABaseFPSCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(ABaseFPSCharacter, PrimaryWeapon);
-	DOREPLIFETIME(ABaseFPSCharacter, SecondaryWeapon);
-	DOREPLIFETIME(ABaseFPSCharacter, MeleeWeapon);
-	DOREPLIFETIME(ABaseFPSCharacter, CurrentWeapon);
-	DOREPLIFETIME(ABaseFPSCharacter, OverlappingWeapon);
-	DOREPLIFETIME(ABaseFPSCharacter, CurrentWeaponSlot);
 	DOREPLIFETIME(ABaseFPSCharacter, bDead);
-	DOREPLIFETIME(ABaseFPSCharacter, HUDAmmoInMag);
-	DOREPLIFETIME(ABaseFPSCharacter, HUDMagSize);
 }

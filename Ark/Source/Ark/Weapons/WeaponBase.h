@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "GameFramework/Actor.h"
-#include "../Characters/BaseFPSCharacter.h"
+#include "FPSWeaponTypes.h"
 #include "WeaponBase.generated.h"
 
 class USkeletalMeshComponent;

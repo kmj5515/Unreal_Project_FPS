@@ -1,5 +1,6 @@
 #include "WeaponBase.h"
 
+#include "../Characters/BaseFPSCharacter.h"
 #include "../Core/FPSPlayerState.h"
 #include "../GAS/FPSGameplayTags.h"
 #include "Components/SkeletalMeshComponent.h"
