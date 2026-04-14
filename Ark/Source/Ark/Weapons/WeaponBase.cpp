@@ -158,17 +158,17 @@ void AWeaponBase::SetWeaponState(EFPSWeaponNetState NewState)
 	WeaponState = NewState;
 	if (HasAuthority())
 	{
-		if (WeaponState == EFPSWeaponNetState::Dropped)
-		{
-			SetOwner(nullptr);
-			OwnerCharacter = nullptr;
-		}
-		else if (OwnerCharacter)
+		if (WeaponState != EFPSWeaponNetState::Dropped && OwnerCharacter)
 		{
 			SetOwner(OwnerCharacter);
 		}
 	}
 	ApplyWeaponState();
+	if (HasAuthority() && WeaponState == EFPSWeaponNetState::Dropped)
+	{
+		SetOwner(nullptr);
+		OwnerCharacter = nullptr;
+	}
 }
 
 void AWeaponBase::ApplyWeaponState()
@@ -212,7 +212,15 @@ void AWeaponBase::ApplyDroppedState()
 	WeaponMesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	if (HasAuthority())
 	{
-		WeaponMesh->AddImpulse(GetActorForwardVector() * DropImpulseStrength, NAME_None, true);
+		APawn* ViewPawn = OwnerCharacter ? OwnerCharacter : Cast<APawn>(GetOwner());
+		FVector ImpulseDir = ViewPawn
+			? ViewPawn->GetControlRotation().Vector().GetSafeNormal()
+			: GetActorForwardVector().GetSafeNormal();
+		if (ImpulseDir.IsNearlyZero())
+		{
+			ImpulseDir = FVector::ForwardVector;
+		}
+		WeaponMesh->AddImpulse(ImpulseDir * DropImpulseStrength, NAME_None, true);
 	}
 
 	if (PickupSphere)
@@ -520,11 +528,7 @@ void AWeaponBase::Multicast_PlayMuzzleFlash_Implementation()
 				ShellMeshComp->SetStaticMesh(ShellEjectStaticMesh);
 				ShellMeshComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 				ShellMeshComp->SetSimulatePhysics(true);
-
-				const FVector EjectDirection =
-					(WeaponMesh->GetSocketRotation(AmmoEjectSocketName).RotateVector(FVector::RightVector) + FVector::UpVector * 0.3f)
-					.GetSafeNormal();
-				ShellMeshComp->AddImpulse(EjectDirection * ShellImpulseStrength, NAME_None, true);
+				ShellMeshComp->AddImpulse(OwnerCharacter->GetActorForwardVector() * DropImpulseStrength, NAME_None, true);
 			}
 
 			if (ShellLifeSpan > 0.f)
