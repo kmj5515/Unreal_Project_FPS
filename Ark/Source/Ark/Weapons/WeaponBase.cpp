@@ -591,17 +591,8 @@ bool AWeaponBase::GetAimStartEnd(FVector& OutStart, FVector& OutEnd) const
 	FVector EyeLocation;
 	FRotator EyeRotation;
 	OwnerCharacter->GetActorEyesViewPoint(EyeLocation, EyeRotation);
-	FVector AimDir = EyeRotation.Vector();
-
-	if (bUseBulletSpread)
-	{
-		const float CrosshairSpreadFactor = FMath::Max(0.f, OwnerCharacter->GetCrosshairSpread());
-		const float SpreadHalfAngleDeg = BulletSpreadPerCrosshairDeg * CrosshairSpreadFactor;
-		if (SpreadHalfAngleDeg > KINDA_SMALL_NUMBER)
-		{
-			AimDir = FMath::VRandCone(AimDir, FMath::DegreesToRadians(SpreadHalfAngleDeg));
-		}
-	}
+	const FVector CameraAimDir = EyeRotation.Vector();
+	const FVector CameraTraceEnd = EyeLocation + (CameraAimDir * Range);
 
 	if (WeaponMesh && WeaponMesh->GetSkeletalMeshAsset() && MuzzleSocketName != NAME_None
 		&& WeaponMesh->DoesSocketExist(MuzzleSocketName))
@@ -611,6 +602,51 @@ bool AWeaponBase::GetAimStartEnd(FVector& OutStart, FVector& OutEnd) const
 	else
 	{
 		OutStart = EyeLocation;
+	}
+
+	FVector FocalPoint = CameraTraceEnd;
+	if (GetWorld())
+	{
+		FCollisionQueryParams CameraTraceParams(SCENE_QUERY_STAT(CameraAimTrace), true);
+		CameraTraceParams.AddIgnoredActor(this);
+		CameraTraceParams.AddIgnoredActor(OwnerCharacter);
+
+		FHitResult VisibilityHit;
+		FHitResult PawnHit;
+		const bool bHitVisibility = GetWorld()->LineTraceSingleByChannel(VisibilityHit, EyeLocation, CameraTraceEnd, ECC_Visibility, CameraTraceParams);
+		const bool bHitPawn = GetWorld()->LineTraceSingleByChannel(PawnHit, EyeLocation, CameraTraceEnd, ECC_Pawn, CameraTraceParams);
+
+		if (bHitVisibility && bHitPawn)
+		{
+			const float VisibilityDistSq = FVector::DistSquared(EyeLocation, VisibilityHit.ImpactPoint);
+			const float PawnDistSq = FVector::DistSquared(EyeLocation, PawnHit.ImpactPoint);
+			const FHitResult& SelectedHit = (PawnDistSq <= VisibilityDistSq) ? PawnHit : VisibilityHit;
+			FocalPoint = SelectedHit.ImpactPoint;
+		}
+		else if (bHitPawn)
+		{
+			FocalPoint = PawnHit.ImpactPoint;
+		}
+		else if (bHitVisibility)
+		{
+			FocalPoint = VisibilityHit.ImpactPoint;
+		}
+	}
+
+	FVector AimDir = (FocalPoint - OutStart).GetSafeNormal();
+	if (AimDir.IsNearlyZero())
+	{
+		AimDir = CameraAimDir;
+	}
+
+	if (bUseBulletSpread)
+	{
+		const float CrosshairSpreadFactor = FMath::Max(0.f, OwnerCharacter->GetCrosshairSpread());
+		const float SpreadHalfAngleDeg = BulletSpreadPerCrosshairDeg * CrosshairSpreadFactor;
+		if (SpreadHalfAngleDeg > KINDA_SMALL_NUMBER)
+		{
+			AimDir = FMath::VRandCone(AimDir, FMath::DegreesToRadians(SpreadHalfAngleDeg));
+		}
 	}
 
 	OutEnd = OutStart + (AimDir * Range);
