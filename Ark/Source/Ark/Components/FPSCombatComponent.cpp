@@ -274,10 +274,6 @@ void UFPSCombatComponent::HandleFireStarted()
 		return;
 	}
 
-	if (OwningChar->IsLocallyControlled())
-	{
-	}
-
 	ServerSetFiring(true);
 }
 
@@ -595,14 +591,13 @@ void UFPSCombatComponent::UpdateCrosshairSpread(float DeltaTime)
 		CrosshairInAirFactor = FMath::FInterpTo(CrosshairInAirFactor, 0.f, DeltaTime, CrosshairGroundInterpSpeed);
 	}
 
-	CrosshairAimFactor = FMath::FInterpTo(CrosshairAimFactor, 0.f, DeltaTime, CrosshairGroundInterpSpeed);
 	CrosshairShootingFactor = FMath::FInterpTo(CrosshairShootingFactor, 0.f, DeltaTime, CrosshairShootRecoverInterpSpeed);
 	if (CrosshairShootingFactor <= KINDA_SMALL_NUMBER)
 	{
 		ConsecutiveShotCount = 0;
 	}
 
-	CrosshairSpread = 0.5f + CrosshairVelocityFactor + CrosshairInAirFactor - CrosshairAimFactor + CrosshairShootingFactor;
+	CrosshairSpread = 0.5f + CrosshairVelocityFactor + CrosshairInAirFactor + CrosshairShootingFactor;
 }
 
 void UFPSCombatComponent::SetHUDCrosshairs() const

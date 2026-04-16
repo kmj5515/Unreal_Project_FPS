@@ -133,7 +133,6 @@ private:
 
 	float CrosshairVelocityFactor = 0.f;
 	float CrosshairInAirFactor = 0.f;
-	float CrosshairAimFactor = 0.f;
 	float CrosshairShootingFactor = 0.f;
 	float CrosshairSpread = 0.5f;
 
