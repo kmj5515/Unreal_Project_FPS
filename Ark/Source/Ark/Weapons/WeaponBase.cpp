@@ -600,7 +600,8 @@ void AWeaponBase::Multicast_PlayMuzzleFlash_Implementation()
 				ShellMeshComp->SetStaticMesh(ShellEjectStaticMesh);
 				ShellMeshComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 				ShellMeshComp->SetSimulatePhysics(true);
-				ShellMeshComp->AddImpulse(OwnerCharacter->GetActorForwardVector() * DropImpulseStrength, NAME_None, true);
+				const FVector EjectDir = ShellSpawnTransform.GetRotation().GetRightVector().GetSafeNormal();
+				ShellMeshComp->AddImpulse(EjectDir * DropImpulseStrength, NAME_None, true);
 			}
 
 			if (ShellLifeSpan > 0.f)
