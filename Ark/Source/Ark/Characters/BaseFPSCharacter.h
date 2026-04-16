@@ -106,6 +106,7 @@ protected:
 	void HandleInteractPressed();
 	void HandleDropPressed();
 	void HandleServerInteract();
+	void ApplyLocalRecoilKick();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UCameraComponent> FirstPersonCamera;
@@ -156,6 +157,26 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input", meta = (ClampMin = "0.01", ClampMax = "5.0"))
 	float LookSensitivityMultiplier = 0.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Recoil", meta = (ClampMin = "0.0"))
+	float RecoilPitchKickPerShot = 0.45f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Recoil", meta = (ClampMin = "0.0"))
+	float RecoilYawKickPerShot = 0.08f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Recoil", meta = (ClampMin = "1"))
+	int32 RecoilSoftShots = 3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Recoil", meta = (ClampMin = "0.0"))
+	float RecoilSoftShotMultiplier = 0.6f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Recoil", meta = (ClampMin = "0.0"))
+	float RecoilHardShotStep = 0.15f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Recoil", meta = (ClampMin = "1.0"))
+	float RecoilHardShotMultiplierMax = 2.0f;
+
+	int32 ConsecutiveRecoilShots = 0;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS")
 	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;

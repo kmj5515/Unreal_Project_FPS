@@ -377,6 +377,7 @@ void ABaseFPSCharacter::HandleFireStopped()
 	{
 		CombatComponent->HandleFireStopped();
 	}
+	ConsecutiveRecoilShots = 0;
 }
 
 void ABaseFPSCharacter::HandleReloadStarted()
@@ -429,6 +430,38 @@ void ABaseFPSCharacter::HandleServerInteract()
 	{
 		CombatComponent->HandleServerInteract();
 	}
+}
+
+void ABaseFPSCharacter::ApplyLocalRecoilKick()
+{
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+
+	APlayerController* PC = Cast<APlayerController>(Controller);
+	if (!PC)
+	{
+		return;
+	}
+
+	++ConsecutiveRecoilShots;
+	const int32 SoftShotCount = FMath::Max(1, RecoilSoftShots);
+	float ShotMultiplier = RecoilSoftShotMultiplier;
+	if (ConsecutiveRecoilShots > SoftShotCount)
+	{
+		const int32 HardShotIndex = ConsecutiveRecoilShots - SoftShotCount;
+		ShotMultiplier = FMath::Clamp(
+			1.f + (HardShotIndex * RecoilHardShotStep),
+			1.f,
+			RecoilHardShotMultiplierMax);
+	}
+
+	FRotator ControlRotation = PC->GetControlRotation();
+	ControlRotation.Pitch = FMath::ClampAngle(ControlRotation.Pitch + (RecoilPitchKickPerShot * ShotMultiplier), -89.f, 89.f);
+	const float YawKick = RecoilYawKickPerShot * ShotMultiplier;
+	ControlRotation.Yaw += FMath::FRandRange(-YawKick, YawKick);
+	PC->SetControlRotation(ControlRotation);
 }
 
 void ABaseFPSCharacter::InitializeAbilityActorInfo()
@@ -674,6 +707,7 @@ void ABaseFPSCharacter::NotifyShotFired()
 	{
 		CombatComponent->AddCrosshairShootingImpulse();
 	}
+	ApplyLocalRecoilKick();
 }
 
 float ABaseFPSCharacter::GetHealthCurrent() const
