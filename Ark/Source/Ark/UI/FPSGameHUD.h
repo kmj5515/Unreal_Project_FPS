@@ -34,7 +34,7 @@ private:
 	void DrawCrosshair(UTexture2D* Texture, const FVector2D& ViewportCenter, const FVector2D& Spread, const FLinearColor& CrosshairColor);
 
 	UPROPERTY(EditAnywhere, Category = "Crosshair")
-	float CrosshairSpreadMax = 28.f;
+	float CrosshairSpreadMax = 32.f;
 
 	FFPSHUDPackage HUDPackage;
 };

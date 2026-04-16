@@ -42,6 +42,7 @@ public:
 	void HandleFireStopped();
 	void HandleReloadStarted();
 	void HandleDropCurrentWeapon();
+	void AddCrosshairShootingImpulse();
 
 	void StopCurrentWeaponFire();
 
@@ -140,7 +141,7 @@ private:
 	float CrosshairInAirMax = 3.0f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "HUD|Crosshair", meta = (ClampMin = "0.0"))
-	float CrosshairShootImpulse = 1.5f;
+	float CrosshairShootImpulse = 0.35f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "HUD|Crosshair", meta = (ClampMin = "0.0"))
 	float CrosshairInAirInterpSpeed = 2.25f;
@@ -149,7 +150,18 @@ private:
 	float CrosshairGroundInterpSpeed = 30.f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "HUD|Crosshair", meta = (ClampMin = "0.0"))
-	float CrosshairShootRecoverInterpSpeed = 20.f;
+	float CrosshairShootRecoverInterpSpeed = 2.5f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Crosshair", meta = (ClampMin = "0.0"))
+	float CrosshairShootingFactorMax = 3.2f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Crosshair", meta = (ClampMin = "0.0"))
+	float CrosshairShotStackStep = 0.12f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Crosshair", meta = (ClampMin = "1.0"))
+	float CrosshairShotStackMultiplierMax = 2.2f;
+
+	int32 ConsecutiveShotCount = 0;
 
 	void UpdateCrosshairSpread(float DeltaTime);
 };

@@ -451,14 +451,63 @@ void AWeaponBase::FireOnce()
 	if (FireMode == EFPSFireMode::Projectile)
 	{
 		SpawnProjectile(Start, End);
-	}
-	else if (PerformHitscanTrace(Hit, Start, End) && Hit.GetActor())
-	{
-		if (!TryApplyGasDamageFromHit(Hit))
+		if (bDebugDrawTrace)
 		{
-			ApplyPointDamageFromHit(Hit);
+			Multicast_DebugShotTrace(Start, End, false, End);
 		}
 	}
+	else
+	{
+		const bool bHit = PerformHitscanTrace(Hit, Start, End);
+		const FVector ImpactPoint = bHit
+			? (Hit.ImpactPoint.IsNearlyZero() ? Hit.Location : Hit.ImpactPoint)
+			: End;
+
+		if (bDebugDrawTrace)
+		{
+			Multicast_DebugShotTrace(Start, End, bHit, ImpactPoint);
+			if (bHit && Hit.GetActor())
+			{
+				Multicast_DebugHitImpact(ImpactPoint);
+			}
+		}
+
+		if (bHit && Hit.GetActor())
+		{
+			if (!TryApplyGasDamageFromHit(Hit))
+			{
+				ApplyPointDamageFromHit(Hit);
+			}
+		}
+	}
+}
+
+void AWeaponBase::Multicast_DebugHitImpact_Implementation(const FVector_NetQuantize& ImpactPoint)
+{
+	if (GetNetMode() == NM_DedicatedServer || !bDebugDrawTrace || !GetWorld())
+	{
+		return;
+	}
+
+	DrawDebugSphere(GetWorld(), FVector(ImpactPoint), 16.f, 16, FColor::Yellow, false, DebugDrawDuration, 0, 2.2f);
+	DrawDebugPoint(GetWorld(), FVector(ImpactPoint), 12.f, FColor::Cyan, false, DebugDrawDuration, 0);
+}
+
+void AWeaponBase::Multicast_DebugShotTrace_Implementation(
+	const FVector_NetQuantize& TraceStart,
+	const FVector_NetQuantize& TraceEnd,
+	bool bHit,
+	const FVector_NetQuantize& ImpactPoint)
+{
+	if (GetNetMode() == NM_DedicatedServer || !bDebugDrawTrace || !GetWorld())
+	{
+		return;
+	}
+
+	const FVector Start = FVector(TraceStart);
+	const FVector End = bHit ? FVector(ImpactPoint) : FVector(TraceEnd);
+	const FColor TraceColor = bHit ? FColor::Green : FColor::Red;
+	DrawDebugLine(GetWorld(), Start, End, TraceColor, false, DebugDrawDuration, 0, 1.6f);
 }
 
 void AWeaponBase::SpawnProjectile(const FVector& Start, const FVector& End)
@@ -573,6 +622,11 @@ void AWeaponBase::Multicast_PlayMuzzleFlash_Implementation()
 	if (GetNetMode() == NM_DedicatedServer)
 	{
 		return;
+	}
+
+	if (OwnerCharacter && OwnerCharacter->IsLocallyControlled())
+	{
+		OwnerCharacter->NotifyShotFired();
 	}
 
 	if (!WeaponMesh)

@@ -37,6 +37,9 @@ protected:
 		FVector NormalImpulse,
 		const FHitResult& Hit);
 
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_DebugProjectileImpact(const FVector_NetQuantize& ImpactPoint, bool bHitPawn);
+
 	UPROPERTY(VisibleAnywhere, Category = "Projectile")
 	TObjectPtr<UBoxComponent> CollisionBox;
 
@@ -54,6 +57,12 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UParticleSystemComponent> TraceParticleComponent;
+
+	UPROPERTY(EditAnywhere, Category = "Projectile|Debug")
+	bool bDebugDrawImpact = true;
+
+	UPROPERTY(EditAnywhere, Category = "Projectile|Debug", meta = (ClampMin = "0.0"))
+	float DebugDrawDuration = 1.5f;
 
 	float Damage = 25.f;
 	bool bDamageApplied = false;

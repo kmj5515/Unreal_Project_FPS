@@ -274,6 +274,10 @@ void UFPSCombatComponent::HandleFireStarted()
 		return;
 	}
 
+	if (OwningChar->IsLocallyControlled())
+	{
+	}
+
 	ServerSetFiring(true);
 }
 
@@ -286,6 +290,7 @@ void UFPSCombatComponent::HandleFireStopped()
 	}
 
 	ServerSetFiring(false);
+	ConsecutiveShotCount = 0;
 }
 
 void UFPSCombatComponent::HandleReloadStarted()
@@ -308,6 +313,21 @@ void UFPSCombatComponent::HandleDropCurrentWeapon()
 	}
 
 	ServerDropCurrentWeapon();
+}
+
+void UFPSCombatComponent::AddCrosshairShootingImpulse()
+{
+	++ConsecutiveShotCount;
+	const float ShotMultiplier = FMath::Clamp(
+		1.f + ((ConsecutiveShotCount - 1) * CrosshairShotStackStep),
+		1.f,
+		CrosshairShotStackMultiplierMax);
+	const float ShotImpulse = CrosshairShootImpulse * ShotMultiplier;
+
+	CrosshairShootingFactor = FMath::Clamp(
+		CrosshairShootingFactor + ShotImpulse,
+		0.f,
+		CrosshairShootingFactorMax);
 }
 
 void UFPSCombatComponent::StopCurrentWeaponFire()
@@ -348,12 +368,12 @@ void UFPSCombatComponent::ServerSetFiring_Implementation(bool bNewFiring)
 
 	if (bNewFiring)
 	{
-		CrosshairShootingFactor = CrosshairShootImpulse;
 		CurrentWeapon->StartFire();
 	}
 	else
 	{
 		CurrentWeapon->StopFire();
+		ConsecutiveShotCount = 0;
 	}
 }
 
@@ -577,6 +597,10 @@ void UFPSCombatComponent::UpdateCrosshairSpread(float DeltaTime)
 
 	CrosshairAimFactor = FMath::FInterpTo(CrosshairAimFactor, 0.f, DeltaTime, CrosshairGroundInterpSpeed);
 	CrosshairShootingFactor = FMath::FInterpTo(CrosshairShootingFactor, 0.f, DeltaTime, CrosshairShootRecoverInterpSpeed);
+	if (CrosshairShootingFactor <= KINDA_SMALL_NUMBER)
+	{
+		ConsecutiveShotCount = 0;
+	}
 
 	CrosshairSpread = 0.5f + CrosshairVelocityFactor + CrosshairInAirFactor - CrosshairAimFactor + CrosshairShootingFactor;
 }

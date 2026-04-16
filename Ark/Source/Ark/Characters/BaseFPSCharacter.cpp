@@ -668,6 +668,14 @@ void ABaseFPSCharacter::NotifyAmmoChangedValues(int32 CurrentInMag, int32 InMagS
 	}
 }
 
+void ABaseFPSCharacter::NotifyShotFired()
+{
+	if (CombatComponent)
+	{
+		CombatComponent->AddCrosshairShootingImpulse();
+	}
+}
+
 float ABaseFPSCharacter::GetHealthCurrent() const
 {
 	return CachedAttributeSet ? CachedAttributeSet->GetHealth() : 0.f;

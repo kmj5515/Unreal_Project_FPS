@@ -59,6 +59,7 @@ public:
 	void NotifyReloadFinished();
 	void NotifyAmmoChanged();
 	void NotifyAmmoChangedValues(int32 CurrentInMag, int32 InMagSize);
+	void NotifyShotFired();
 
 	UFUNCTION(BlueprintPure, Category = "HUD")
 	float GetHealthCurrent() const;

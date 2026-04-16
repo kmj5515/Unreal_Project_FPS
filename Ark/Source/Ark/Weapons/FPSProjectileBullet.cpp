@@ -9,6 +9,7 @@
 #include "Particles/ParticleSystemComponent.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
+#include "DrawDebugHelpers.h"
 
 AFPSProjectileBullet::AFPSProjectileBullet()
 {
@@ -96,6 +97,13 @@ void AFPSProjectileBullet::OnProjectileHit(
 	}
 	bDamageApplied = true;
 
+	if (bDebugDrawImpact)
+	{
+		const FVector ImpactPoint = Hit.ImpactPoint.IsNearlyZero() ? Hit.Location : Hit.ImpactPoint;
+		const bool bHitPawn = Cast<APawn>(OtherActor) != nullptr;
+		Multicast_DebugProjectileImpact(ImpactPoint, bHitPawn);
+	}
+
 	if (DamageGameplayEffect && DamageInstigator)
 	{
 		AFPSPlayerState* SourcePS = DamageInstigator->GetPlayerState<AFPSPlayerState>();
@@ -126,5 +134,18 @@ void AFPSProjectileBullet::OnProjectileHit(
 	{
 		CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
-	Destroy();
+	//Destroy();
+}
+
+void AFPSProjectileBullet::Multicast_DebugProjectileImpact_Implementation(const FVector_NetQuantize& ImpactPoint, bool bHitPawn)
+{
+	if (GetNetMode() == NM_DedicatedServer || !bDebugDrawImpact || !GetWorld())
+	{
+		return;
+	}
+
+	const FVector DebugPoint = FVector(ImpactPoint);
+	const FColor ImpactColor = bHitPawn ? FColor::Orange : FColor::Yellow;
+	DrawDebugSphere(GetWorld(), DebugPoint, 18.f, 16, ImpactColor, false, DebugDrawDuration, 0, 2.0f);
+	DrawDebugPoint(GetWorld(), DebugPoint, 12.f, FColor::Cyan, false, DebugDrawDuration, 0);
 }

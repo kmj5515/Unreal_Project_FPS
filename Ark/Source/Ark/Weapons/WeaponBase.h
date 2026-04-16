@@ -88,6 +88,16 @@ protected:
 	UFUNCTION(NetMulticast, Unreliable)
 	void Multicast_PlayMuzzleFlash();
 
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_DebugHitImpact(const FVector_NetQuantize& ImpactPoint);
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_DebugShotTrace(
+		const FVector_NetQuantize& TraceStart,
+		const FVector_NetQuantize& TraceEnd,
+		bool bHit,
+		const FVector_NetQuantize& ImpactPoint);
+
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_PlayReloadMontage(UAnimMontage* MontageToPlay);
 
@@ -168,7 +178,7 @@ protected:
 	bool bUseBulletSpread = true;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Spread", meta = (ClampMin = "0.0", ClampMax = "15.0"))
-	float BulletSpreadPerCrosshairDeg = 0.45f;
+	float BulletSpreadPerCrosshairDeg = 0.9f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Melee", meta = (ClampMin = "0.0", Units = "cm"))
 	float MeleeRange = 160.f;
