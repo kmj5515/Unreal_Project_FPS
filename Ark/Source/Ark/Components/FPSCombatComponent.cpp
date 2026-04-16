@@ -34,10 +34,10 @@ void UFPSCombatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	DOREPLIFETIME(UFPSCombatComponent, SecondaryWeapon);
 	DOREPLIFETIME(UFPSCombatComponent, MeleeWeapon);
 	DOREPLIFETIME(UFPSCombatComponent, CurrentWeapon);
-	DOREPLIFETIME(UFPSCombatComponent, OverlappingWeapon);
+	DOREPLIFETIME_CONDITION(UFPSCombatComponent, OverlappingWeapon, COND_OwnerOnly);
 	DOREPLIFETIME(UFPSCombatComponent, CurrentWeaponSlot);
-	DOREPLIFETIME(UFPSCombatComponent, HUDAmmoInMag);
-	DOREPLIFETIME(UFPSCombatComponent, HUDMagSize);
+	DOREPLIFETIME_CONDITION(UFPSCombatComponent, HUDAmmoInMag, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UFPSCombatComponent, HUDMagSize, COND_OwnerOnly);
 }
 
 void UFPSCombatComponent::SpawnDefaultLoadout()
@@ -77,7 +77,7 @@ void UFPSCombatComponent::SpawnDefaultLoadout()
 void UFPSCombatComponent::EquipWeaponBySlot(EFPSWeaponSlot Slot)
 {
 	ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
-	if (!OwningChar || OwningChar->IsDead())
+	if (!OwningChar || OwningChar->IsDead() || OwningChar->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
 	{
 		return;
 	}
@@ -150,6 +150,47 @@ void UFPSCombatComponent::SetOverlappingWeapon(AWeaponBase* InWeapon)
 	}
 }
 
+bool UFPSCombatComponent::HasWeaponInSlot(EFPSWeaponSlot Slot) const
+{
+	switch (Slot)
+	{
+	case EFPSWeaponSlot::Primary:
+		return PrimaryWeapon != nullptr;
+	case EFPSWeaponSlot::Secondary:
+		return SecondaryWeapon != nullptr;
+	case EFPSWeaponSlot::Melee:
+		return MeleeWeapon != nullptr;
+	default:
+		return false;
+	}
+}
+
+bool UFPSCombatComponent::TryAutoPickupWeaponFromOverlap(AWeaponBase* CandidateWeapon)
+{
+	ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
+	if (!OwningChar || !GetOwner() || !GetOwner()->HasAuthority() || OwningChar->IsDead()
+		|| OwningChar->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || !CandidateWeapon)
+	{
+		return false;
+	}
+
+	// Only auto-pickup if nothing is currently equipped.
+	if (CurrentWeapon)
+	{
+		return false;
+	}
+
+	const EFPSWeaponSlot CandidateSlot = CandidateWeapon->GetWeaponSlot();
+	if (HasWeaponInSlot(CandidateSlot))
+	{
+		return false;
+	}
+
+	OverlappingWeapon = CandidateWeapon;
+	ServerPickupOverlappingWeapon();
+	return true;
+}
+
 void UFPSCombatComponent::HandleServerInteract()
 {
 	ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
@@ -213,12 +254,6 @@ void UFPSCombatComponent::HandleFireStarted()
 		return;
 	}
 
-	if (GetOwner()->HasAuthority())
-	{
-		ServerSetFiring(true);
-		return;
-	}
-
 	ServerSetFiring(true);
 }
 
@@ -227,12 +262,6 @@ void UFPSCombatComponent::HandleFireStopped()
 	ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
 	if (!OwningChar || OwningChar->IsDead())
 	{
-		return;
-	}
-
-	if (GetOwner()->HasAuthority())
-	{
-		ServerSetFiring(false);
 		return;
 	}
 
@@ -248,6 +277,17 @@ void UFPSCombatComponent::HandleReloadStarted()
 	}
 
 	ServerStartReload();
+}
+
+void UFPSCombatComponent::HandleDropCurrentWeapon()
+{
+	ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
+	if (!OwningChar || OwningChar->IsDead())
+	{
+		return;
+	}
+
+	ServerDropCurrentWeapon();
 }
 
 void UFPSCombatComponent::StopCurrentWeaponFire()
@@ -310,7 +350,7 @@ void UFPSCombatComponent::ServerStartReload_Implementation()
 void UFPSCombatComponent::ServerPickupOverlappingWeapon_Implementation()
 {
 	ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
-	if (!OwningChar || OwningChar->IsDead() || !OverlappingWeapon)
+	if (!OwningChar || OwningChar->IsDead() || OwningChar->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || !OverlappingWeapon)
 	{
 		return;
 	}
@@ -318,6 +358,11 @@ void UFPSCombatComponent::ServerPickupOverlappingWeapon_Implementation()
 	AWeaponBase* PickedWeapon = OverlappingWeapon;
 	OverlappingWeapon = nullptr;
 	const EFPSWeaponSlot Slot = PickedWeapon->GetWeaponSlot();
+
+	if (HasWeaponInSlot(Slot))
+	{
+		return;
+	}
 
 	auto DropSlotWeapon = [this](TObjectPtr<AWeaponBase>& SlotWeapon)
 	{
@@ -360,7 +405,6 @@ void UFPSCombatComponent::ServerPickupOverlappingWeapon_Implementation()
 	default:
 		return;
 	}
-
 	PickedWeapon->InitializeWeapon(OwningChar, Slot);
 	PickedWeapon->SetDroppedState(false);
 	EquipWeaponBySlot(Slot);

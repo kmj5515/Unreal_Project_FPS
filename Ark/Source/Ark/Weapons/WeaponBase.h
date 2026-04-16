@@ -209,7 +209,19 @@ protected:
 	float ProjectileInitialSpeed = 12000.f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Drop", meta = (ClampMin = "0.0"))
-	float DropImpulseStrength = 250.f;
+	float DropImpulseStrength = 350.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Drop", meta = (ClampMin = "0.0"))
+	float SelfPickupBlockAfterDropSeconds = 0.5f;
+
+	UPROPERTY(Transient)
+	TObjectPtr<ABaseFPSCharacter> LastDropCharacter;
+
+	UPROPERTY(Transient)
+	float LastDropWorldTimeSeconds = -1000.f;
+
+	FTimerHandle ReenablePickupSphereTimerHandle;
+	void EnablePickupSphereAfterDropBlock();
 
 	bool bIsFiring = false;
 	bool bIsReloading = false;

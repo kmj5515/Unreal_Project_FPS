@@ -37,6 +37,7 @@ ABaseFPSCharacter::ABaseFPSCharacter()
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
 
 	CombatComponent = CreateDefaultSubobject<UFPSCombatComponent>(TEXT("CombatComponent"));
+	CombatComponent->SetIsReplicated(true);
 
 	FirstPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
 	FirstPersonCamera->SetupAttachment(GetCapsuleComponent());
@@ -109,7 +110,7 @@ void ABaseFPSCharacter::RequestDropCurrentWeapon()
 		return;
 	}
 
-	HandleInteractPressed();
+	HandleDropPressed();
 }
 
 void ABaseFPSCharacter::SetOverlappingWeapon(AWeaponBase* InWeapon)
@@ -129,6 +130,13 @@ void ABaseFPSCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	AttachViewCameraToMesh();
+}
+
+void ABaseFPSCharacter::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+
+	CombatComponent = FindComponentByClass<UFPSCombatComponent>();
 }
 
 void ABaseFPSCharacter::AttachViewCameraToMesh()
@@ -232,7 +240,7 @@ void ABaseFPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 
 		if (DropAction)
 		{
-			EnhancedInputComponent->BindAction(DropAction, ETriggerEvent::Started, this, &ABaseFPSCharacter::HandleInteractPressed);
+			EnhancedInputComponent->BindAction(DropAction, ETriggerEvent::Started, this, &ABaseFPSCharacter::HandleDropPressed);
 		}
 	}
 }
@@ -401,6 +409,20 @@ void ABaseFPSCharacter::HandleInteractPressed()
 	}
 }
 
+void ABaseFPSCharacter::HandleDropPressed()
+{
+	if (bDead || LastInteractInputFrame == GFrameCounter)
+	{
+		return;
+	}
+	LastInteractInputFrame = GFrameCounter;
+
+	if (CombatComponent)
+	{
+		CombatComponent->HandleDropCurrentWeapon();
+	}
+}
+
 void ABaseFPSCharacter::HandleServerInteract()
 {
 	if (CombatComponent)
@@ -540,6 +562,44 @@ void ABaseFPSCharacter::Multicast_OnDeath_Implementation()
 
 void ABaseFPSCharacter::OnRep_Dead()
 {
+	if (!bDead)
+	{
+		return;
+	}
+
+	if (CombatComponent)
+	{
+		CombatComponent->StopCurrentWeaponFire();
+	}
+	NotifyReloadFinished();
+
+	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+	{
+		Movement->StopMovementImmediately();
+		Movement->DisableMovement();
+	}
+
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		DisableInput(PC);
+		PC->SetIgnoreMoveInput(true);
+		PC->SetIgnoreLookInput(true);
+	}
+
+	FreezeDeathCameraIfLocal();
+
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		if (IsLocallyControlled())
+		{
+			MeshComp->SetVisibility(true, true);
+		}
+
+		if (DeathMontage && MeshComp->GetAnimInstance())
+		{
+			MeshComp->GetAnimInstance()->Montage_Play(DeathMontage, 1.f);
+		}
+	}
 }
 
 void ABaseFPSCharacter::OnMoveSpeedChanged(const FOnAttributeChangeData& ChangeData)

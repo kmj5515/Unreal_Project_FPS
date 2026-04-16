@@ -24,6 +24,47 @@
 #include "Components/SphereComponent.h"
 #include "FPSProjectileBullet.h"
 
+namespace
+{
+USkeletalMeshComponent* ResolveBestAttachMesh(ABaseFPSCharacter* InCharacter, const FName& DesiredSocket)
+{
+	if (!InCharacter)
+	{
+		return nullptr;
+	}
+
+	USkeletalMeshComponent* DefaultMesh = InCharacter->GetMesh();
+	if (DefaultMesh && DefaultMesh->GetSkeletalMeshAsset())
+	{
+		return DefaultMesh;
+	}
+
+	TArray<USkeletalMeshComponent*> MeshComponents;
+	InCharacter->GetComponents<USkeletalMeshComponent>(MeshComponents);
+
+	USkeletalMeshComponent* FallbackWithAsset = nullptr;
+	for (USkeletalMeshComponent* MeshComp : MeshComponents)
+	{
+		if (!MeshComp || !MeshComp->GetSkeletalMeshAsset())
+		{
+			continue;
+		}
+
+		if (DesiredSocket != NAME_None && MeshComp->DoesSocketExist(DesiredSocket))
+		{
+			return MeshComp;
+		}
+
+		if (!FallbackWithAsset)
+		{
+			FallbackWithAsset = MeshComp;
+		}
+	}
+
+	return FallbackWithAsset;
+}
+}
+
 AWeaponBase::AWeaponBase()
 {
 	bReplicates = true;
@@ -106,7 +147,7 @@ void AWeaponBase::ApplyWeaponDataFromAsset()
 	}
 
 	MagazineSize = FMath::Max(1, WeaponData->MagazineSize);
-	AmmoInMagazine = FMath::Min(AmmoInMagazine, MagazineSize);
+	AmmoInMagazine = MagazineSize;
 }
 
 void AWeaponBase::InitializeWeapon(ABaseFPSCharacter* InOwnerCharacter, EFPSWeaponSlot InSlot)
@@ -155,6 +196,7 @@ void AWeaponBase::SetDroppedState(bool bDropped)
 
 void AWeaponBase::SetWeaponState(EFPSWeaponNetState NewState)
 {
+	ABaseFPSCharacter* PreviousOwnerCharacter = OwnerCharacter;
 	WeaponState = NewState;
 	if (HasAuthority())
 	{
@@ -166,6 +208,8 @@ void AWeaponBase::SetWeaponState(EFPSWeaponNetState NewState)
 	ApplyWeaponState();
 	if (HasAuthority() && WeaponState == EFPSWeaponNetState::Dropped)
 	{
+		LastDropCharacter = PreviousOwnerCharacter;
+		LastDropWorldTimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : -1000.f;
 		SetOwner(nullptr);
 		OwnerCharacter = nullptr;
 	}
@@ -185,12 +229,21 @@ void AWeaponBase::ApplyWeaponState()
 
 void AWeaponBase::ApplyEquippedState()
 {
-	if (OwnerCharacter && OwnerCharacter->GetMesh())
+	if (OwnerCharacter)
 	{
+		USkeletalMeshComponent* OwnerMesh = ResolveBestAttachMesh(OwnerCharacter, EquippedSocketName);
+		if (!OwnerMesh)
+		{
+			return;
+		}
+
+		const bool bHasSocket = (EquippedSocketName != NAME_None && OwnerMesh->DoesSocketExist(EquippedSocketName));
+		const FName AttachSocketNameToUse = bHasSocket ? EquippedSocketName : NAME_None;
+
 		AttachToComponent(
-			OwnerCharacter->GetMesh(),
+			OwnerMesh,
 			FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-			EquippedSocketName);
+			AttachSocketNameToUse);
 	}
 
 	WeaponMesh->SetSimulatePhysics(false);
@@ -225,7 +278,33 @@ void AWeaponBase::ApplyDroppedState()
 
 	if (PickupSphere)
 	{
-		PickupSphere->SetCollisionEnabled(HasAuthority() ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
+		PickupSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+		if (HasAuthority())
+		{
+			GetWorldTimerManager().ClearTimer(ReenablePickupSphereTimerHandle);
+			if (SelfPickupBlockAfterDropSeconds > 0.f)
+			{
+				GetWorldTimerManager().SetTimer(
+					ReenablePickupSphereTimerHandle,
+					this,
+					&AWeaponBase::EnablePickupSphereAfterDropBlock,
+					SelfPickupBlockAfterDropSeconds,
+					false);
+			}
+			else
+			{
+				EnablePickupSphereAfterDropBlock();
+			}
+		}
+	}
+}
+
+void AWeaponBase::EnablePickupSphereAfterDropBlock()
+{
+	if (PickupSphere && HasAuthority())
+	{
+		PickupSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	}
 }
 
@@ -245,8 +324,6 @@ void AWeaponBase::StartFire()
 	{
 		return;
 	}
-
-	UE_LOG(LogTemp, Log, TEXT("[WeaponFire] StartFire: %s (Slot=%d)"), *GetName(), static_cast<int32>(WeaponSlot));
 
 	bIsFiring = true;
 
@@ -377,15 +454,10 @@ void AWeaponBase::FireOnce()
 	}
 	else if (PerformHitscanTrace(Hit, Start, End) && Hit.GetActor())
 	{
-		UE_LOG(LogTemp, Log, TEXT("[WeaponFire] Hit: %s -> %s"), *GetName(), *Hit.GetActor()->GetName());
 		if (!TryApplyGasDamageFromHit(Hit))
 		{
 			ApplyPointDamageFromHit(Hit);
 		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Log, TEXT("[WeaponFire] Miss: %s"), *GetName());
 	}
 }
 
@@ -708,15 +780,10 @@ void AWeaponBase::PerformMeleeAttack()
 
 	if (bHit && Hit.GetActor())
 	{
-		UE_LOG(LogTemp, Log, TEXT("[WeaponMelee] Hit: %s -> %s"), *GetName(), *Hit.GetActor()->GetName());
 		if (!TryApplyGasDamageFromHit(Hit))
 		{
 			ApplyPointDamageFromHit(Hit);
 		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Log, TEXT("[WeaponMelee] Miss: %s"), *GetName());
 	}
 }
 
@@ -825,7 +892,26 @@ void AWeaponBase::OnPickupSphereBeginOverlap(
 		return;
 	}
 
+	if (OverlapCharacter->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+	{
+		return;
+	}
+
+	if (HasAuthority() && LastDropCharacter == OverlapCharacter && GetWorld())
+	{
+		const float SinceDrop = GetWorld()->GetTimeSeconds() - LastDropWorldTimeSeconds;
+		if (SinceDrop >= 0.f && SinceDrop < SelfPickupBlockAfterDropSeconds)
+		{
+			return;
+		}
+	}
+
 	OverlapCharacter->SetOverlappingWeapon(this);
+
+	if (UFPSCombatComponent* RuntimeCombatComponent = OverlapCharacter->FindComponentByClass<UFPSCombatComponent>())
+	{
+		RuntimeCombatComponent->TryAutoPickupWeaponFromOverlap(this);
+	}
 }
 
 void AWeaponBase::OnPickupSphereEndOverlap(

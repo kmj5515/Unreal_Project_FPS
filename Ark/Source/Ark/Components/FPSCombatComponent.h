@@ -38,11 +38,14 @@ public:
 	void HandleFireStarted();
 	void HandleFireStopped();
 	void HandleReloadStarted();
+	void HandleDropCurrentWeapon();
 
 	void StopCurrentWeaponFire();
 
 	AWeaponBase* GetOverlappingWeapon() const { return OverlappingWeapon; }
 	AWeaponBase* GetCurrentWeapon() const { return CurrentWeapon; }
+	bool HasWeaponInSlot(EFPSWeaponSlot Slot) const;
+	bool TryAutoPickupWeaponFromOverlap(AWeaponBase* CandidateWeapon);
 
 	int32 GetAmmoInMag() const { return HUDAmmoInMag; }
 	int32 GetMagSize() const { return HUDMagSize; }
