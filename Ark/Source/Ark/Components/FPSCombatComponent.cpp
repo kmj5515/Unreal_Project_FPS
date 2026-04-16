@@ -1,7 +1,10 @@
 #include "FPSCombatComponent.h"
 
 #include "../Characters/BaseFPSCharacter.h"
+#include "../Core/FPSPlayerController.h"
+#include "../UI/FPSGameHUD.h"
 #include "../Weapons/WeaponBase.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
 
 ABaseFPSCharacter* UFPSCombatComponent::GetOwningFPSCharacter() const
@@ -11,8 +14,25 @@ ABaseFPSCharacter* UFPSCombatComponent::GetOwningFPSCharacter() const
 
 UFPSCombatComponent::UFPSCombatComponent()
 {
-	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bCanEverTick = true;
 	SetIsReplicatedByDefault(true);
+}
+
+void UFPSCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	const ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
+	if (!OwningChar)
+	{
+		return;
+	}
+
+	UpdateCrosshairSpread(DeltaTime);
+	if (OwningChar->IsLocallyControlled())
+	{
+		SetHUDCrosshairs();
+	}
 }
 
 void UFPSCombatComponent::BeginPlay()
@@ -328,6 +348,7 @@ void UFPSCombatComponent::ServerSetFiring_Implementation(bool bNewFiring)
 
 	if (bNewFiring)
 	{
+		CrosshairShootingFactor = CrosshairShootImpulse;
 		CurrentWeapon->StartFire();
 	}
 	else
@@ -523,4 +544,80 @@ void UFPSCombatComponent::OnRep_HUDMagSize()
 	{
 		OwningChar->BroadcastHUDAmmoDirect(HUDAmmoInMag, HUDMagSize);
 	}
+}
+
+void UFPSCombatComponent::UpdateCrosshairSpread(float DeltaTime)
+{
+	const ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
+	if (!OwningChar)
+	{
+		return;
+	}
+
+	const UCharacterMovementComponent* MovementComp = OwningChar->GetCharacterMovement();
+	if (!MovementComp)
+	{
+		return;
+	}
+
+	FVector Velocity = OwningChar->GetVelocity();
+	Velocity.Z = 0.f;
+	const FVector2D WalkSpeedRange(0.f, MovementComp->MaxWalkSpeed);
+	const FVector2D VelocityMultiplierRange(0.f, 1.f);
+	CrosshairVelocityFactor = FMath::GetMappedRangeValueClamped(WalkSpeedRange, VelocityMultiplierRange, Velocity.Size());
+
+	if (MovementComp->IsFalling())
+	{
+		CrosshairInAirFactor = FMath::FInterpTo(CrosshairInAirFactor, CrosshairInAirMax, DeltaTime, CrosshairInAirInterpSpeed);
+	}
+	else
+	{
+		CrosshairInAirFactor = FMath::FInterpTo(CrosshairInAirFactor, 0.f, DeltaTime, CrosshairGroundInterpSpeed);
+	}
+
+	CrosshairAimFactor = FMath::FInterpTo(CrosshairAimFactor, 0.f, DeltaTime, CrosshairGroundInterpSpeed);
+	CrosshairShootingFactor = FMath::FInterpTo(CrosshairShootingFactor, 0.f, DeltaTime, CrosshairShootRecoverInterpSpeed);
+
+	CrosshairSpread = 0.5f + CrosshairVelocityFactor + CrosshairInAirFactor - CrosshairAimFactor + CrosshairShootingFactor;
+}
+
+void UFPSCombatComponent::SetHUDCrosshairs() const
+{
+	const ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
+	if (!OwningChar || !OwningChar->Controller)
+	{
+		return;
+	}
+
+	if (CachedPlayerController == nullptr)
+	{
+		CachedPlayerController = Cast<AFPSPlayerController>(OwningChar->Controller);
+	}
+	if (!CachedPlayerController)
+	{
+		return;
+	}
+
+	if (CachedHUD == nullptr)
+	{
+		CachedHUD = Cast<AFPSGameHUD>(CachedPlayerController->GetHUD());
+	}
+	if (!CachedHUD)
+	{
+		return;
+	}
+
+	FFPSHUDPackage HUDPackage;
+	if (CurrentWeapon)
+	{
+		HUDPackage.CrosshairsCenter = CurrentWeapon->GetCrosshairCenter();
+		HUDPackage.CrosshairsLeft = CurrentWeapon->GetCrosshairLeft();
+		HUDPackage.CrosshairsRight = CurrentWeapon->GetCrosshairRight();
+		HUDPackage.CrosshairsTop = CurrentWeapon->GetCrosshairTop();
+		HUDPackage.CrosshairsBottom = CurrentWeapon->GetCrosshairBottom();
+	}
+
+	HUDPackage.CrosshairSpread = CrosshairSpread;
+	HUDPackage.CrosshairsColor = FLinearColor::White;
+	CachedHUD->SetHUDPackage(HUDPackage);
 }

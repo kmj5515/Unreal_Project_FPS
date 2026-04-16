@@ -7,6 +7,8 @@
 
 class ABaseFPSCharacter;
 class AWeaponBase;
+class AFPSPlayerController;
+class AFPSGameHUD;
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class ARK_API UFPSCombatComponent : public UActorComponent
@@ -15,6 +17,7 @@ class ARK_API UFPSCombatComponent : public UActorComponent
 
 public:
 	UFPSCombatComponent();
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
@@ -49,12 +52,14 @@ public:
 
 	int32 GetAmmoInMag() const { return HUDAmmoInMag; }
 	int32 GetMagSize() const { return HUDMagSize; }
+	float GetCrosshairSpread() const { return CrosshairSpread; }
 
 protected:
 	virtual void BeginPlay() override;
 
 private:
 	ABaseFPSCharacter* GetOwningFPSCharacter() const;
+	void SetHUDCrosshairs() const;
 
 	UFUNCTION(Server, Reliable)
 	void ServerEquipWeapon(EFPSWeaponSlot Slot);
@@ -121,4 +126,30 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_HUDMagSize)
 	int32 HUDMagSize = 0;
+
+	mutable TObjectPtr<AFPSPlayerController> CachedPlayerController;
+	mutable TObjectPtr<AFPSGameHUD> CachedHUD;
+
+	float CrosshairVelocityFactor = 0.f;
+	float CrosshairInAirFactor = 0.f;
+	float CrosshairAimFactor = 0.f;
+	float CrosshairShootingFactor = 0.f;
+	float CrosshairSpread = 0.5f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Crosshair", meta = (ClampMin = "0.0"))
+	float CrosshairInAirMax = 3.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Crosshair", meta = (ClampMin = "0.0"))
+	float CrosshairShootImpulse = 1.5f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Crosshair", meta = (ClampMin = "0.0"))
+	float CrosshairInAirInterpSpeed = 2.25f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Crosshair", meta = (ClampMin = "0.0"))
+	float CrosshairGroundInterpSpeed = 30.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Crosshair", meta = (ClampMin = "0.0"))
+	float CrosshairShootRecoverInterpSpeed = 20.f;
+
+	void UpdateCrosshairSpread(float DeltaTime);
 };

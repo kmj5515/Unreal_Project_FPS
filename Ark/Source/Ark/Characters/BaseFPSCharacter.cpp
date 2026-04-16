@@ -546,6 +546,11 @@ void ABaseFPSCharacter::Multicast_OnDeath_Implementation()
 {
 	FreezeDeathCameraIfLocal();
 
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		Capsule->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
 	if (USkeletalMeshComponent* MeshComp = GetMesh())
 	{
 		if (IsLocallyControlled())
@@ -587,6 +592,11 @@ void ABaseFPSCharacter::OnRep_Dead()
 	}
 
 	FreezeDeathCameraIfLocal();
+
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		Capsule->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
 
 	if (USkeletalMeshComponent* MeshComp = GetMesh())
 	{
@@ -676,6 +686,11 @@ int32 ABaseFPSCharacter::GetAmmoInMag() const
 int32 ABaseFPSCharacter::GetMagSize() const
 {
 	return CombatComponent ? CombatComponent->GetMagSize() : 0;
+}
+
+float ABaseFPSCharacter::GetCrosshairSpread() const
+{
+	return CombatComponent ? CombatComponent->GetCrosshairSpread() : 0.5f;
 }
 
 void ABaseFPSCharacter::BroadcastHUDHealth()

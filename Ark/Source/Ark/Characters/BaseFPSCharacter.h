@@ -72,6 +72,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "HUD")
 	int32 GetMagSize() const;
 
+	UFUNCTION(BlueprintPure, Category = "HUD")
+	float GetCrosshairSpread() const;
+
 	FFPSHUDHealthChangedSignature& OnHUDHealthChanged() { return HUDHealthChanged; }
 	FFPSHUDAmmoChangedSignature& OnHUDAmmoChanged() { return HUDAmmoChanged; }
 

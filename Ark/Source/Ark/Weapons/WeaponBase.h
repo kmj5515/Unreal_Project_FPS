@@ -18,6 +18,7 @@ class UStaticMesh;
 class USphereComponent;
 class UPrimitiveComponent;
 class AFPSProjectileBullet;
+class UTexture2D;
 
 UENUM(BlueprintType)
 enum class EFPSFireMode : uint8
@@ -61,6 +62,12 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	EFPSWeaponSlot GetWeaponSlot() const { return WeaponSlot; }
+
+	UTexture2D* GetCrosshairCenter() const { return CrosshairCenter; }
+	UTexture2D* GetCrosshairLeft() const { return CrosshairLeft; }
+	UTexture2D* GetCrosshairRight() const { return CrosshairRight; }
+	UTexture2D* GetCrosshairTop() const { return CrosshairTop; }
+	UTexture2D* GetCrosshairBottom() const { return CrosshairBottom; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -157,6 +164,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Stats")
 	EFPSFireMode FireMode = EFPSFireMode::HitScan;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Spread")
+	bool bUseBulletSpread = true;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Spread", meta = (ClampMin = "0.0", ClampMax = "15.0"))
+	float BulletSpreadPerCrosshairDeg = 0.45f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Melee", meta = (ClampMin = "0.0", Units = "cm"))
 	float MeleeRange = 160.f;
 
@@ -192,6 +205,21 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Animation")
 	TObjectPtr<UAnimMontage> ReloadMontage;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Crosshair")
+	TObjectPtr<UTexture2D> CrosshairCenter;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Crosshair")
+	TObjectPtr<UTexture2D> CrosshairLeft;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Crosshair")
+	TObjectPtr<UTexture2D> CrosshairRight;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Crosshair")
+	TObjectPtr<UTexture2D> CrosshairTop;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Crosshair")
+	TObjectPtr<UTexture2D> CrosshairBottom;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Debug")
 	bool bDebugDrawTrace = false;

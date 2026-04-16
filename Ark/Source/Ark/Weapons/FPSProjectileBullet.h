@@ -5,7 +5,7 @@
 #include "GameFramework/Actor.h"
 #include "FPSProjectileBullet.generated.h"
 
-class USphereComponent;
+class UBoxComponent;
 class UProjectileMovementComponent;
 class ABaseFPSCharacter;
 class UParticleSystem;
@@ -38,7 +38,10 @@ protected:
 		const FHitResult& Hit);
 
 	UPROPERTY(VisibleAnywhere, Category = "Projectile")
-	TObjectPtr<USphereComponent> CollisionSphere;
+	TObjectPtr<UBoxComponent> CollisionBox;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Projectile|Collision", meta = (ClampMin = "0.1", Units = "cm"))
+	FVector CollisionBoxExtent = FVector(2.5f, 2.5f, 2.5f);
 
 	UPROPERTY(VisibleAnywhere, Category = "Projectile")
 	TObjectPtr<UProjectileMovementComponent> ProjectileMovement;

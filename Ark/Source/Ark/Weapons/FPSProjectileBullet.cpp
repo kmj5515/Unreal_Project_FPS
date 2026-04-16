@@ -2,7 +2,7 @@
 
 #include "../Characters/BaseFPSCharacter.h"
 #include "../Core/FPSPlayerState.h"
-#include "Components/SphereComponent.h"
+#include "Components/BoxComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystem.h"
@@ -15,15 +15,19 @@ AFPSProjectileBullet::AFPSProjectileBullet()
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;
 
-	CollisionSphere = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionSphere"));
-	SetRootComponent(CollisionSphere);
-	CollisionSphere->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	CollisionSphere->SetCollisionObjectType(ECC_WorldDynamic);
-	CollisionSphere->SetCollisionResponseToAllChannels(ECR_Ignore);
-	CollisionSphere->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
-	CollisionSphere->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
-	CollisionSphere->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
-	CollisionSphere->SetNotifyRigidBodyCollision(true);
+	constexpr ECollisionChannel ProjectileObjectChannel = ECC_GameTraceChannel1;
+
+	CollisionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionBox"));
+	SetRootComponent(CollisionBox);
+	CollisionBox->SetBoxExtent(CollisionBoxExtent);
+	CollisionBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	CollisionBox->SetCollisionObjectType(ProjectileObjectChannel);
+	CollisionBox->SetCollisionResponseToAllChannels(ECR_Ignore);
+	CollisionBox->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
+	CollisionBox->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Ignore);
+	CollisionBox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
+	CollisionBox->SetCollisionResponseToChannel(ProjectileObjectChannel, ECR_Ignore);
+	CollisionBox->SetNotifyRigidBodyCollision(true);
 
 	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
 	ProjectileMovement->InitialSpeed = 12000.f;
@@ -45,7 +49,7 @@ void AFPSProjectileBullet::InitializeProjectile(
 	DamageSetByCallerTag = InDamageSetByCallerTag;
 	if (DamageInstigator)
 	{
-		CollisionSphere->IgnoreActorWhenMoving(DamageInstigator, true);
+		CollisionBox->IgnoreActorWhenMoving(DamageInstigator, true);
 	}
 	if (ProjectileMovement)
 	{
@@ -59,9 +63,9 @@ void AFPSProjectileBullet::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (CollisionSphere)
+	if (CollisionBox)
 	{
-		CollisionSphere->OnComponentHit.AddDynamic(this, &AFPSProjectileBullet::OnProjectileHit);
+		CollisionBox->OnComponentHit.AddDynamic(this, &AFPSProjectileBullet::OnProjectileHit);
 	}
 
 	if (TraceParticle)
@@ -118,5 +122,9 @@ void AFPSProjectileBullet::OnProjectileHit(
 		}
 	}
 
+	if (CollisionBox)
+	{
+		CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
 	Destroy();
 }

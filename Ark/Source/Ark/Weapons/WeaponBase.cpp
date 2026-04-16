@@ -542,7 +542,17 @@ bool AWeaponBase::GetAimStartEnd(FVector& OutStart, FVector& OutEnd) const
 	FVector EyeLocation;
 	FRotator EyeRotation;
 	OwnerCharacter->GetActorEyesViewPoint(EyeLocation, EyeRotation);
-	const FVector AimDir = EyeRotation.Vector();
+	FVector AimDir = EyeRotation.Vector();
+
+	if (bUseBulletSpread)
+	{
+		const float CrosshairSpreadFactor = FMath::Max(0.f, OwnerCharacter->GetCrosshairSpread());
+		const float SpreadHalfAngleDeg = BulletSpreadPerCrosshairDeg * CrosshairSpreadFactor;
+		if (SpreadHalfAngleDeg > KINDA_SMALL_NUMBER)
+		{
+			AimDir = FMath::VRandCone(AimDir, FMath::DegreesToRadians(SpreadHalfAngleDeg));
+		}
+	}
 
 	if (WeaponMesh && WeaponMesh->GetSkeletalMeshAsset() && MuzzleSocketName != NAME_None
 		&& WeaponMesh->DoesSocketExist(MuzzleSocketName))
