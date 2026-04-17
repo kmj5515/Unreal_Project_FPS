@@ -1,5 +1,8 @@
 #include "FPSAttributeSet.h"
 
+#include "../Characters/BaseFPSCharacter.h"
+#include "GameFramework/Controller.h"
+#include "GameFramework/Pawn.h"
 #include "Net/UnrealNetwork.h"
 
 UFPSAttributeSet::UFPSAttributeSet()
@@ -59,6 +62,44 @@ void UFPSAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbac
 
 		if (LocalDamage > 0.f)
 		{
+			AController* EventInstigator = nullptr;
+			AActor* DamageCauser = nullptr;
+			const FGameplayEffectContextHandle EffectContext = Data.EffectSpec.GetContext();
+			if (EffectContext.IsValid())
+			{
+				AActor* InstigatorActor = EffectContext.GetOriginalInstigator();
+				if (!InstigatorActor)
+				{
+					InstigatorActor = EffectContext.GetInstigator();
+				}
+
+				if (InstigatorActor)
+				{
+					if (APawn* InstigatorPawn = Cast<APawn>(InstigatorActor))
+					{
+						EventInstigator = InstigatorPawn->GetController();
+					}
+					else if (AController* InstigatorController = Cast<AController>(InstigatorActor))
+					{
+						EventInstigator = InstigatorController;
+					}
+				}
+
+				if (AActor* EffectCauser = EffectContext.GetEffectCauser())
+				{
+					DamageCauser = EffectCauser;
+				}
+				else
+				{
+					DamageCauser = Cast<AActor>(EffectContext.GetSourceObject());
+				}
+			}
+
+			if (ABaseFPSCharacter* DamagedCharacter = Cast<ABaseFPSCharacter>(Data.Target.GetAvatarActor()))
+			{
+				DamagedCharacter->RecordDamageSource(EventInstigator, DamageCauser);
+			}
+
 			SetHealth(FMath::Clamp(GetHealth() - LocalDamage, 0.f, GetMaxHealth()));
 		}
 	}

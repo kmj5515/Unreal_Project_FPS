@@ -65,3 +65,13 @@ void AFPSPlayerController::BindHUDToCurrentPawn()
 
 	HUDWidget->BindToCharacter(GetPawn<ABaseFPSCharacter>());
 }
+
+void AFPSPlayerController::ClientReceiveKillLog_Implementation(const FString& KillerName, const FString& VictimName, const FString& WeaponName)
+{
+	if (!HUDWidget)
+	{
+		return;
+	}
+
+	HUDWidget->AddKillLogEntry(KillerName, VictimName, WeaponName);
+}

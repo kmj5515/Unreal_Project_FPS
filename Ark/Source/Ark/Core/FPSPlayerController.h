@@ -15,6 +15,9 @@ class ARK_API AFPSPlayerController : public APlayerController
 public:
 	AFPSPlayerController();
 
+	UFUNCTION(Client, Reliable)
+	void ClientReceiveKillLog(const FString& KillerName, const FString& VictimName, const FString& WeaponName);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnPossess(APawn* InPawn) override;

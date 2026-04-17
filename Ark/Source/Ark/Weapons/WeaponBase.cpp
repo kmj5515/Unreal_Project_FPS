@@ -85,6 +85,16 @@ AWeaponBase::AWeaponBase()
 	PickupSphere->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 }
 
+FString AWeaponBase::GetKillFeedWeaponName() const
+{
+	if (!KillFeedWeaponName.IsEmpty())
+	{
+		return KillFeedWeaponName.ToString();
+	}
+
+	return GetClass() ? GetClass()->GetName() : TEXT("Weapon");
+}
+
 void AWeaponBase::BeginPlay()
 {
 	Super::BeginPlay();

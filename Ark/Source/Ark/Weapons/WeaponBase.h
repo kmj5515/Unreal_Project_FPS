@@ -68,6 +68,7 @@ public:
 	UTexture2D* GetCrosshairRight() const { return CrosshairRight; }
 	UTexture2D* GetCrosshairTop() const { return CrosshairTop; }
 	UTexture2D* GetCrosshairBottom() const { return CrosshairBottom; }
+	FString GetKillFeedWeaponName() const;
 
 protected:
 	virtual void BeginPlay() override;
@@ -215,6 +216,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Animation")
 	TObjectPtr<UAnimMontage> ReloadMontage;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|UI")
+	FText KillFeedWeaponName;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Crosshair")
 	TObjectPtr<UTexture2D> CrosshairCenter;

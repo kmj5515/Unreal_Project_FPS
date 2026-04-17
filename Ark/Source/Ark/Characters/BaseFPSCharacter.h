@@ -13,6 +13,8 @@ class UAbilitySystemComponent;
 class UFPSAttributeSet;
 class UAnimMontage;
 class AWeaponBase;
+class AController;
+class AActor;
 struct FOnAttributeChangeData;
 class UFPSHUDWidget;
 
@@ -27,6 +29,7 @@ class ARK_API ABaseFPSCharacter : public ACharacter
 public:
 	ABaseFPSCharacter();
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void RequestEquipWeaponSlot(EFPSWeaponSlot Slot);
@@ -80,6 +83,7 @@ public:
 	FFPSHUDAmmoChangedSignature& OnHUDAmmoChanged() { return HUDAmmoChanged; }
 
 	void BroadcastHUDAmmoDirect(int32 AmmoInMag, int32 MagSize);
+	void RecordDamageSource(AController* EventInstigator, AActor* DamageCauser);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
 	TObjectPtr<UFPSCombatComponent> CombatComponent;
@@ -213,4 +217,6 @@ protected:
 	FDelegateHandle HealthChangedDelegateHandle;
 	FFPSHUDHealthChangedSignature HUDHealthChanged;
 	FFPSHUDAmmoChangedSignature HUDAmmoChanged;
+	TWeakObjectPtr<AController> LastDamageInstigatorController;
+	TWeakObjectPtr<AActor> LastDamageCauserActor;
 };

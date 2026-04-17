@@ -4,6 +4,9 @@
 #include "GameFramework/GameModeBase.h"
 #include "FPSGameMode.generated.h"
 
+class AFPSPlayerState;
+class AActor;
+
 UCLASS()
 class ARK_API AFPSGameMode : public AGameModeBase
 {
@@ -11,4 +14,5 @@ class ARK_API AFPSGameMode : public AGameModeBase
 
 public:
 	AFPSGameMode();
+	void ReportKill(AFPSPlayerState* KillerPlayerState, AFPSPlayerState* VictimPlayerState, AActor* DamageCauser);
 };

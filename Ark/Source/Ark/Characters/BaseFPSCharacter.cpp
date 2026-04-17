@@ -1,5 +1,6 @@
 #include "BaseFPSCharacter.h"
 
+#include "../Core/FPSGameMode.h"
 #include "../Core/FPSPlayerState.h"
 #include "../GAS/FPSAttributeSet.h"
 #include "../GAS/FPSGameplayTags.h"
@@ -44,6 +45,18 @@ ABaseFPSCharacter::ABaseFPSCharacter()
 	FirstPersonCamera->SetupAttachment(GetCapsuleComponent());
 	FirstPersonCamera->SetRelativeLocation(FVector(0.f, 0.f, 64.f));
 	FirstPersonCamera->bUsePawnControlRotation = true;
+}
+
+float ABaseFPSCharacter::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	const float AppliedDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+	if (AppliedDamage > 0.f)
+	{
+		RecordDamageSource(EventInstigator, DamageCauser);
+	}
+
+	return AppliedDamage;
 }
 
 void ABaseFPSCharacter::RequestEquipWeaponSlot(EFPSWeaponSlot Slot)
@@ -578,6 +591,19 @@ void ABaseFPSCharacter::HandleDeathFromAuthority()
 		PC->SetIgnoreLookInput(true);
 	}
 
+	if (AFPSGameMode* FPSGameMode = GetWorld()->GetAuthGameMode<AFPSGameMode>())
+	{
+		AFPSPlayerState* VictimPlayerState = GetPlayerState<AFPSPlayerState>();
+		AFPSPlayerState* KillerPlayerState = nullptr;
+
+		if (AController* KillerController = LastDamageInstigatorController.Get())
+		{
+			KillerPlayerState = KillerController->GetPlayerState<AFPSPlayerState>();
+		}
+
+		FPSGameMode->ReportKill(KillerPlayerState, VictimPlayerState, LastDamageCauserActor.Get());
+	}
+
 	Multicast_OnDeath();
 }
 
@@ -765,6 +791,17 @@ void ABaseFPSCharacter::BroadcastHUDAmmo()
 void ABaseFPSCharacter::BroadcastHUDAmmoDirect(int32 AmmoInMag, int32 MagSize)
 {
 	HUDAmmoChanged.Broadcast(AmmoInMag, MagSize);
+}
+
+void ABaseFPSCharacter::RecordDamageSource(AController* EventInstigator, AActor* DamageCauser)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	LastDamageInstigatorController = EventInstigator;
+	LastDamageCauserActor = DamageCauser;
 }
 
 void ABaseFPSCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
