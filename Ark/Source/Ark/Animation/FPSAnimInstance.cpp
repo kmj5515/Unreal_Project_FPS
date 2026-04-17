@@ -29,13 +29,16 @@ void UFPSAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 		bJumpPressed = false;
 		bCrouching = false;
 		bDead = false;
+		bWeaponEquipped = false;
 		return;
 	}
 
 	bDead = false;
+	bWeaponEquipped = false;
 	if (const ABaseFPSCharacter* FPSChar = Cast<ABaseFPSCharacter>(OwningCharacter))
 	{
 		bDead = FPSChar->IsDead();
+		bWeaponEquipped = (FPSChar->CombatComponent && FPSChar->CombatComponent->GetCurrentWeapon() != nullptr);
 	}
 
 	if (bDead)
@@ -46,6 +49,7 @@ void UFPSAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 		bEnableJump = false;
 		bJumpPressed = false;
 		bCrouching = false;
+		bWeaponEquipped = false;
 		return;
 	}
 

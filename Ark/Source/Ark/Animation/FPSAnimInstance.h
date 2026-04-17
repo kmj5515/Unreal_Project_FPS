@@ -36,6 +36,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Combat")
 	bool bDead = false;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Combat")
+	bool bWeaponEquipped = false;
+
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	TObjectPtr<ACharacter> OwningCharacter;
