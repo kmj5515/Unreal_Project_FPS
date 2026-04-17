@@ -24,6 +24,7 @@ ABaseFPSCharacter::ABaseFPSCharacter()
 	bReplicates = true;
 
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Ignore);
 
 	bUseControllerRotationPitch = true;
 	bUseControllerRotationYaw = true;
@@ -130,6 +131,22 @@ void ABaseFPSCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	AttachViewCameraToMesh();
+
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		Capsule->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Ignore);
+	}
+
+	TArray<USkeletalMeshComponent*> MeshComponents;
+	GetComponents<USkeletalMeshComponent>(MeshComponents);
+	for (USkeletalMeshComponent* MeshComp : MeshComponents)
+	{
+		if (!MeshComp)
+		{
+			continue;
+		}
+		MeshComp->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Block);
+	}
 }
 
 void ABaseFPSCharacter::PostInitializeComponents()
