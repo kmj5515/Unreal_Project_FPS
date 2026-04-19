@@ -271,46 +271,22 @@ void UFPSCombatComponent::HandleEquipMelee()
 
 void UFPSCombatComponent::HandleFireStarted()
 {
-	ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
-	if (!OwningChar || OwningChar->IsDead())
-	{
-		return;
-	}
-
 	ServerSetFiring(true);
 }
 
 void UFPSCombatComponent::HandleFireStopped()
 {
-	ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
-	if (!OwningChar || OwningChar->IsDead())
-	{
-		return;
-	}
-
 	ServerSetFiring(false);
 	ConsecutiveShotCount = 0;
 }
 
 void UFPSCombatComponent::HandleReloadStarted()
 {
-	ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
-	if (!OwningChar || OwningChar->IsDead())
-	{
-		return;
-	}
-
 	ServerStartReload();
 }
 
 void UFPSCombatComponent::HandleDropCurrentWeapon()
 {
-	ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
-	if (!OwningChar || OwningChar->IsDead())
-	{
-		return;
-	}
-
 	ServerDropCurrentWeapon();
 }
 
