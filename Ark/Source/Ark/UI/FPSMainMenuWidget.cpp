@@ -8,25 +8,25 @@ void UFPSMainMenuWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	if (Button_Quit)
+	if (QuitGameButton)
 	{
-		Button_Quit->OnClicked.AddDynamic(this, &UFPSMainMenuWidget::OnQuitClicked);
+		QuitGameButton->OnClicked.AddDynamic(this, &UFPSMainMenuWidget::OnQuitClicked);
 	}
-	if (Button_GameStart)
+	if (StartGameButton)
 	{
-		Button_GameStart->OnClicked.AddDynamic(this, &UFPSMainMenuWidget::OnGameStartClicked);
+		StartGameButton->OnClicked.AddDynamic(this, &UFPSMainMenuWidget::OnGameStartClicked);
 	}
 }
 
 void UFPSMainMenuWidget::NativeDestruct()
 {
-	if (Button_Quit)
+	if (QuitGameButton)
 	{
-		Button_Quit->OnClicked.RemoveDynamic(this, &UFPSMainMenuWidget::OnQuitClicked);
+		QuitGameButton->OnClicked.RemoveDynamic(this, &UFPSMainMenuWidget::OnQuitClicked);
 	}
-	if (Button_GameStart)
+	if (StartGameButton)
 	{
-		Button_GameStart->OnClicked.RemoveDynamic(this, &UFPSMainMenuWidget::OnGameStartClicked);
+		StartGameButton->OnClicked.RemoveDynamic(this, &UFPSMainMenuWidget::OnGameStartClicked);
 	}
 	Super::NativeDestruct();
 }

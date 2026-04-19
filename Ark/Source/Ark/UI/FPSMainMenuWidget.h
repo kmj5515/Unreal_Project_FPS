@@ -23,8 +23,8 @@ protected:
 	void OnGameStartClicked();
 
 	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UButton> Button_Quit;
+	TObjectPtr<UButton> QuitGameButton;
 
 	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UButton> Button_GameStart;
+	TObjectPtr<UButton> StartGameButton;
 };
