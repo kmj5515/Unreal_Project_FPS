@@ -284,6 +284,11 @@ protected:
 	void EnablePickupSphereAfterDropBlock();
 	void PlayMontageOnOwner(UAnimMontage* MontageToPlay) const;
 
+	bool SelectClosestHit(const FVector& Start, const FVector& End, const FCollisionQueryParams& Params, FHitResult& OutHit) const;
+	FVector ResolveMuzzleStart(const FVector& FallbackLocation) const;
+	FVector ResolveCameraFocalPoint(const FVector& EyeLocation, const FVector& CameraTraceEnd) const;
+	void ApplyBulletSpread(FVector& AimDir) const;
+
 	bool bIsFiring = false;
 	bool bIsReloading = false;
 	FTimerHandle ReloadTimerHandle;

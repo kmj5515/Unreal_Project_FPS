@@ -655,46 +655,9 @@ bool AWeaponBase::GetAimStartEnd(FVector& OutStart, FVector& OutEnd) const
 	FRotator EyeRotation;
 	OwnerCharacter->GetActorEyesViewPoint(EyeLocation, EyeRotation);
 	const FVector CameraAimDir = EyeRotation.Vector();
-	const FVector CameraTraceEnd = EyeLocation + (CameraAimDir * Range);
 
-	if (WeaponMesh && WeaponMesh->GetSkeletalMeshAsset() && MuzzleSocketName != NAME_None
-		&& WeaponMesh->DoesSocketExist(MuzzleSocketName))
-	{
-		OutStart = WeaponMesh->GetSocketLocation(MuzzleSocketName);
-	}
-	else
-	{
-		OutStart = EyeLocation;
-	}
-
-	FVector FocalPoint = CameraTraceEnd;
-	if (GetWorld())
-	{
-		FCollisionQueryParams CameraTraceParams(SCENE_QUERY_STAT(CameraAimTrace), true);
-		CameraTraceParams.AddIgnoredActor(this);
-		CameraTraceParams.AddIgnoredActor(OwnerCharacter);
-
-		FHitResult VisibilityHit;
-		FHitResult PawnHit;
-		const bool bHitVisibility = GetWorld()->LineTraceSingleByChannel(VisibilityHit, EyeLocation, CameraTraceEnd, ECC_Visibility, CameraTraceParams);
-		const bool bHitPawn = GetWorld()->LineTraceSingleByChannel(PawnHit, EyeLocation, CameraTraceEnd, ECC_Pawn, CameraTraceParams);
-
-		if (bHitVisibility && bHitPawn)
-		{
-			const float VisibilityDistSq = FVector::DistSquared(EyeLocation, VisibilityHit.ImpactPoint);
-			const float PawnDistSq = FVector::DistSquared(EyeLocation, PawnHit.ImpactPoint);
-			const FHitResult& SelectedHit = (PawnDistSq <= VisibilityDistSq) ? PawnHit : VisibilityHit;
-			FocalPoint = SelectedHit.ImpactPoint;
-		}
-		else if (bHitPawn)
-		{
-			FocalPoint = PawnHit.ImpactPoint;
-		}
-		else if (bHitVisibility)
-		{
-			FocalPoint = VisibilityHit.ImpactPoint;
-		}
-	}
+	OutStart = ResolveMuzzleStart(EyeLocation);
+	const FVector FocalPoint = ResolveCameraFocalPoint(EyeLocation, EyeLocation + CameraAimDir * Range);
 
 	FVector AimDir = (FocalPoint - OutStart).GetSafeNormal();
 	if (AimDir.IsNearlyZero())
@@ -702,18 +665,81 @@ bool AWeaponBase::GetAimStartEnd(FVector& OutStart, FVector& OutEnd) const
 		AimDir = CameraAimDir;
 	}
 
-	if (bUseBulletSpread)
-	{
-		const float CrosshairSpreadFactor = FMath::Max(0.f, OwnerCharacter->GetCrosshairSpread());
-		const float SpreadHalfAngleDeg = BulletSpreadPerCrosshairDeg * CrosshairSpreadFactor;
-		if (SpreadHalfAngleDeg > KINDA_SMALL_NUMBER)
-		{
-			AimDir = FMath::VRandCone(AimDir, FMath::DegreesToRadians(SpreadHalfAngleDeg));
-		}
-	}
-
+	ApplyBulletSpread(AimDir);
 	OutEnd = OutStart + (AimDir * Range);
 	return true;
+}
+
+FVector AWeaponBase::ResolveMuzzleStart(const FVector& FallbackLocation) const
+{
+	if (WeaponMesh && WeaponMesh->GetSkeletalMeshAsset()
+		&& MuzzleSocketName != NAME_None && WeaponMesh->DoesSocketExist(MuzzleSocketName))
+	{
+		return WeaponMesh->GetSocketLocation(MuzzleSocketName);
+	}
+	return FallbackLocation;
+}
+
+FVector AWeaponBase::ResolveCameraFocalPoint(const FVector& EyeLocation, const FVector& CameraTraceEnd) const
+{
+	if (!GetWorld())
+	{
+		return CameraTraceEnd;
+	}
+
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(CameraAimTrace), true);
+	Params.AddIgnoredActor(this);
+	if (OwnerCharacter)
+	{
+		Params.AddIgnoredActor(OwnerCharacter);
+	}
+
+	FHitResult Hit;
+	if (SelectClosestHit(EyeLocation, CameraTraceEnd, Params, Hit))
+	{
+		return Hit.ImpactPoint;
+	}
+	return CameraTraceEnd;
+}
+
+void AWeaponBase::ApplyBulletSpread(FVector& AimDir) const
+{
+	if (!bUseBulletSpread || !OwnerCharacter)
+	{
+		return;
+	}
+
+	const float SpreadHalfAngleDeg = BulletSpreadPerCrosshairDeg * FMath::Max(0.f, OwnerCharacter->GetCrosshairSpread());
+	if (SpreadHalfAngleDeg > KINDA_SMALL_NUMBER)
+	{
+		AimDir = FMath::VRandCone(AimDir, FMath::DegreesToRadians(SpreadHalfAngleDeg));
+	}
+}
+
+bool AWeaponBase::SelectClosestHit(
+	const FVector& Start, const FVector& End,
+	const FCollisionQueryParams& Params,
+	FHitResult& OutHit) const
+{
+	if (!GetWorld())
+	{
+		return false;
+	}
+
+	FHitResult VisibilityHit, PawnHit;
+	const bool bHitVisibility = GetWorld()->LineTraceSingleByChannel(VisibilityHit, Start, End, ECC_Visibility, Params);
+	const bool bHitPawn = GetWorld()->LineTraceSingleByChannel(PawnHit, Start, End, ECC_Pawn, Params);
+
+	if (bHitVisibility && bHitPawn)
+	{
+		const float VisDist = FVector::DistSquared(Start, VisibilityHit.ImpactPoint);
+		const float PawnDist = FVector::DistSquared(Start, PawnHit.ImpactPoint);
+		OutHit = (PawnDist <= VisDist) ? PawnHit : VisibilityHit;
+		return true;
+	}
+	if (bHitPawn) { OutHit = PawnHit; return true; }
+	if (bHitVisibility) { OutHit = VisibilityHit; return true; }
+	return false;
 }
 
 void AWeaponBase::Multicast_PlayMuzzleFlash_Implementation()
@@ -848,29 +874,7 @@ bool AWeaponBase::PerformHitscanTrace(FHitResult& OutHit, const FVector& Start, 
 		Params.AddIgnoredActor(OwnerCharacter);
 	}
 
-	FHitResult VisibilityHit;
-	FHitResult PawnHit;
-	const bool bHitVisibility = GetWorld()->LineTraceSingleByChannel(VisibilityHit, Start, End, ECC_Visibility, Params);
-	const bool bHitPawn = GetWorld()->LineTraceSingleByChannel(PawnHit, Start, End, ECC_Pawn, Params);
-
-	bool bHit = false;
-	if (bHitVisibility && bHitPawn)
-	{
-		const float VisibilityDistSq = FVector::DistSquared(Start, VisibilityHit.ImpactPoint);
-		const float PawnDistSq = FVector::DistSquared(Start, PawnHit.ImpactPoint);
-		OutHit = (PawnDistSq <= VisibilityDistSq) ? PawnHit : VisibilityHit;
-		bHit = true;
-	}
-	else if (bHitPawn)
-	{
-		OutHit = PawnHit;
-		bHit = true;
-	}
-	else if (bHitVisibility)
-	{
-		OutHit = VisibilityHit;
-		bHit = true;
-	}
+	const bool bHit = SelectClosestHit(Start, End, Params, OutHit);
 
 	if (bDebugDrawTrace)
 	{
