@@ -1,21 +1,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Abilities/GameplayAbility.h"
+#include "GA_WeaponFireBase.h"
 #include "GA_WeaponFireRifle.generated.h"
 
 UCLASS()
-class ARK_API UGA_WeaponFireRifle : public UGameplayAbility
+class ARK_API UGA_WeaponFireRifle : public UGA_WeaponFireBase
 {
 	GENERATED_BODY()
-
-public:
-	UGA_WeaponFireRifle();
-
-protected:
-	virtual void ActivateAbility(
-		const FGameplayAbilitySpecHandle Handle,
-		const FGameplayAbilityActorInfo* ActorInfo,
-		const FGameplayAbilityActivationInfo ActivationInfo,
-		const FGameplayEventData* TriggerEventData) override;
 };

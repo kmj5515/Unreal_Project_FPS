@@ -134,7 +134,7 @@ void AFPSProjectileBullet::OnProjectileHit(
 	{
 		CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
-	//Destroy();
+	Destroy();
 }
 
 void AFPSProjectileBullet::Multicast_DebugProjectileImpact_Implementation(const FVector_NetQuantize& ImpactPoint, bool bHitPawn)

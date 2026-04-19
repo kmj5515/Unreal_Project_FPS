@@ -191,6 +191,7 @@ protected:
 	void BroadcastHUDHealth();
 	void BroadcastHUDAmmo();
 	void HandleDeathFromAuthority();
+	void ApplyDeathEffectsLocal();
 	void FreezeDeathCameraIfLocal();
 	void ApplyMoveSpeed(float NewMoveSpeed);
 	void AttachViewCameraToMesh();

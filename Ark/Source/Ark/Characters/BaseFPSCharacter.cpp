@@ -571,25 +571,7 @@ void ABaseFPSCharacter::HandleDeathFromAuthority()
 		AbilitySystemComponent->CancelAllAbilities();
 	}
 
-	if (CombatComponent)
-	{
-		CombatComponent->StopCurrentWeaponFire();
-	}
-	NotifyReloadFinished();
 	BroadcastHUDHealth();
-
-	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
-	{
-		Movement->StopMovementImmediately();
-		Movement->DisableMovement();
-	}
-
-	if (APlayerController* PC = Cast<APlayerController>(GetController()))
-	{
-		DisableInput(PC);
-		PC->SetIgnoreMoveInput(true);
-		PC->SetIgnoreLookInput(true);
-	}
 
 	if (AFPSGameMode* FPSGameMode = GetWorld()->GetAuthGameMode<AFPSGameMode>())
 	{
@@ -618,36 +600,8 @@ void ABaseFPSCharacter::FreezeDeathCameraIfLocal()
 	FirstPersonCamera->bUsePawnControlRotation = false;
 }
 
-void ABaseFPSCharacter::Multicast_OnDeath_Implementation()
+void ABaseFPSCharacter::ApplyDeathEffectsLocal()
 {
-	FreezeDeathCameraIfLocal();
-
-	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
-	{
-		Capsule->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	}
-
-	if (USkeletalMeshComponent* MeshComp = GetMesh())
-	{
-		if (IsLocallyControlled())
-		{
-			MeshComp->SetVisibility(true, true);
-		}
-
-		if (DeathMontage && MeshComp->GetAnimInstance())
-		{
-			MeshComp->GetAnimInstance()->Montage_Play(DeathMontage, 1.f);
-		}
-	}
-}
-
-void ABaseFPSCharacter::OnRep_Dead()
-{
-	if (!bDead)
-	{
-		return;
-	}
-
 	if (CombatComponent)
 	{
 		CombatComponent->StopCurrentWeaponFire();
@@ -686,6 +640,21 @@ void ABaseFPSCharacter::OnRep_Dead()
 			MeshComp->GetAnimInstance()->Montage_Play(DeathMontage, 1.f);
 		}
 	}
+}
+
+void ABaseFPSCharacter::Multicast_OnDeath_Implementation()
+{
+	ApplyDeathEffectsLocal();
+}
+
+void ABaseFPSCharacter::OnRep_Dead()
+{
+	if (!bDead)
+	{
+		return;
+	}
+
+	ApplyDeathEffectsLocal();
 }
 
 void ABaseFPSCharacter::OnMoveSpeedChanged(const FOnAttributeChangeData& ChangeData)
