@@ -4,6 +4,7 @@
 #include "../Core/FPSPlayerController.h"
 #include "../UI/FPSGameHUD.h"
 #include "../Weapons/WeaponBase.h"
+#include "Engine/Texture2D.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
 
@@ -58,6 +59,7 @@ void UFPSCombatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	DOREPLIFETIME(UFPSCombatComponent, CurrentWeaponSlot);
 	DOREPLIFETIME_CONDITION(UFPSCombatComponent, HUDAmmoInMag, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UFPSCombatComponent, HUDMagSize, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UFPSCombatComponent, HUDReserveAmmo, COND_OwnerOnly);
 }
 
 void UFPSCombatComponent::SpawnDefaultLoadout()
@@ -144,6 +146,7 @@ void UFPSCombatComponent::EquipWeaponBySlot(EFPSWeaponSlot Slot)
 	CurrentWeapon->OnEquipped(WeaponAttachSocketName);
 	ApplyCurrentWeaponVisibility();
 	NotifyAmmoChanged();
+	OwningChar->SetIsArmed(true);
 }
 
 void UFPSCombatComponent::ApplyCurrentWeaponVisibility()
@@ -491,25 +494,28 @@ void UFPSCombatComponent::ServerDropCurrentWeapon_Implementation()
 	}
 	else
 	{
-		NotifyAmmoChangedValues(0, 0);
+		NotifyAmmoChangedValues(0, 0, 0);
+		OwningChar->SetIsArmed(false);
 	}
 }
 
-void UFPSCombatComponent::NotifyAmmoChangedValues(int32 CurrentInMag, int32 InMagSize)
+void UFPSCombatComponent::NotifyAmmoChangedValues(int32 CurrentInMag, int32 InMagSize, int32 ReserveAmmo)
 {
 	const int32 NewAmmo = FMath::Max(0, CurrentInMag);
 	const int32 NewMagSize = FMath::Max(0, InMagSize);
+	const int32 NewReserve = FMath::Max(0, ReserveAmmo);
 
 	if (GetOwner() && GetOwner()->HasAuthority())
 	{
 		HUDAmmoInMag = NewAmmo;
 		HUDMagSize = NewMagSize;
+		HUDReserveAmmo = NewReserve;
 	}
 
 	ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
 	if (OwningChar)
 	{
-		OwningChar->BroadcastHUDAmmoDirect(NewAmmo, NewMagSize);
+		OwningChar->BroadcastHUDAmmoDirect(NewAmmo, NewMagSize, NewReserve);
 	}
 }
 
@@ -518,7 +524,7 @@ void UFPSCombatComponent::NotifyAmmoChanged()
 	ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
 	if (OwningChar)
 	{
-		OwningChar->BroadcastHUDAmmoDirect(HUDAmmoInMag, HUDMagSize);
+		OwningChar->BroadcastHUDAmmoDirect(HUDAmmoInMag, HUDMagSize, HUDReserveAmmo);
 	}
 }
 
@@ -532,11 +538,14 @@ void UFPSCombatComponent::OnRep_CurrentWeapon()
 	ApplyCurrentWeaponVisibility();
 	if (CurrentWeapon)
 	{
-		NotifyAmmoChangedValues(CurrentWeapon->GetCurrentAmmoInMagazine(), CurrentWeapon->GetMagazineSize());
+		NotifyAmmoChangedValues(
+			CurrentWeapon->GetCurrentAmmoInMagazine(),
+			CurrentWeapon->GetMagazineSize(),
+			CurrentWeapon->GetReserveAmmo());
 	}
 	else
 	{
-		NotifyAmmoChangedValues(0, 0);
+		NotifyAmmoChangedValues(0, 0, 0);
 	}
 }
 
@@ -549,7 +558,7 @@ void UFPSCombatComponent::OnRep_HUDAmmoInMag()
 	ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
 	if (OwningChar)
 	{
-		OwningChar->BroadcastHUDAmmoDirect(HUDAmmoInMag, HUDMagSize);
+		OwningChar->BroadcastHUDAmmoDirect(HUDAmmoInMag, HUDMagSize, HUDReserveAmmo);
 	}
 }
 
@@ -558,7 +567,16 @@ void UFPSCombatComponent::OnRep_HUDMagSize()
 	ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
 	if (OwningChar)
 	{
-		OwningChar->BroadcastHUDAmmoDirect(HUDAmmoInMag, HUDMagSize);
+		OwningChar->BroadcastHUDAmmoDirect(HUDAmmoInMag, HUDMagSize, HUDReserveAmmo);
+	}
+}
+
+void UFPSCombatComponent::OnRep_HUDReserveAmmo()
+{
+	ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
+	if (OwningChar)
+	{
+		OwningChar->BroadcastHUDAmmoDirect(HUDAmmoInMag, HUDMagSize, HUDReserveAmmo);
 	}
 }
 
@@ -629,14 +647,30 @@ void UFPSCombatComponent::SetHUDCrosshairs() const
 	FFPSHUDPackage HUDPackage;
 	if (CurrentWeapon)
 	{
-		HUDPackage.CrosshairsCenter = CurrentWeapon->GetCrosshairCenter();
-		HUDPackage.CrosshairsLeft = CurrentWeapon->GetCrosshairLeft();
-		HUDPackage.CrosshairsRight = CurrentWeapon->GetCrosshairRight();
-		HUDPackage.CrosshairsTop = CurrentWeapon->GetCrosshairTop();
-		HUDPackage.CrosshairsBottom = CurrentWeapon->GetCrosshairBottom();
+		HUDPackage.CrosshairsCenter =
+			ResolveCrosshairTexture(CurrentWeapon->GetCrosshairCenter(), DefaultCrosshairCenter);
+		HUDPackage.CrosshairsLeft =
+			ResolveCrosshairTexture(CurrentWeapon->GetCrosshairLeft(), DefaultCrosshairLeft);
+		HUDPackage.CrosshairsRight =
+			ResolveCrosshairTexture(CurrentWeapon->GetCrosshairRight(), DefaultCrosshairRight);
+		HUDPackage.CrosshairsTop =
+			ResolveCrosshairTexture(CurrentWeapon->GetCrosshairTop(), DefaultCrosshairTop);
+		HUDPackage.CrosshairsBottom =
+			ResolveCrosshairTexture(CurrentWeapon->GetCrosshairBottom(), DefaultCrosshairBottom);
 	}
 
 	HUDPackage.CrosshairSpread = CrosshairSpread;
 	HUDPackage.CrosshairsColor = FLinearColor::White;
 	CachedHUD->SetHUDPackage(HUDPackage);
+}
+
+UTexture2D* UFPSCombatComponent::ResolveCrosshairTexture(
+	UTexture2D* WeaponTexture,
+	const TObjectPtr<UTexture2D>& SlotDefault) const
+{
+	if (WeaponTexture)
+	{
+		return WeaponTexture;
+	}
+	return SlotDefault.Get();
 }

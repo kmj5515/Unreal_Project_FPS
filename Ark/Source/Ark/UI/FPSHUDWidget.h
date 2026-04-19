@@ -23,7 +23,7 @@ public:
 	void SetHealth(float Current, float Max);
 
 	UFUNCTION(BlueprintCallable, Category = "HUD")
-	void SetAmmo(int32 CurrentInMag, int32 InMagSize);
+	void SetAmmo(int32 CurrentInMag, int32 InMagSize, int32 ReserveAmmo = 0);
 
 	UFUNCTION(BlueprintCallable, Category = "HUD")
 	void AddKillLogEntry(const FString& KillerName, const FString& VictimName, const FString& WeaponName);
@@ -40,12 +40,15 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "HUD")
 	int32 MagSize = 0;
 
+	UPROPERTY(BlueprintReadOnly, Category = "HUD")
+	int32 ReserveAmmo = 0;
+
 protected:
 	void RefreshHealthText();
 	void RefreshAmmoText();
 	void RefreshKillFeedText();
 	void HandleHealthChanged(float Current, float Max);
-	void HandleAmmoChanged(int32 CurrentInMag, int32 InMagSize);
+	void HandleAmmoChanged(int32 CurrentInMag, int32 InMagSize, int32 InReserveAmmo);
 	void UnbindCharacterDelegates();
 
 	UPROPERTY(meta = (BindWidgetOptional))

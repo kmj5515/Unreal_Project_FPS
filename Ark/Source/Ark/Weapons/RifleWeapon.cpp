@@ -9,4 +9,6 @@ ARifleWeapon::ARifleWeapon()
 	bFullAuto = true;
 	FireMode = EFPSFireMode::Projectile;
 	ProjectileInitialSpeed = 14000.f;
+	MagazineSize = 30;
+	MaxCarryAmmo = 180;
 }

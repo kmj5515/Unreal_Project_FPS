@@ -5,9 +5,10 @@
 
 ## 현재 상태
 
-- 현재 단계: **전투 MVP 완료(Phase 3/4)**, **Phase 5(애니·동기화) 진행 중**
+- 현재 단계: **전투 MVP 완료(Phase 3/4)**, **Phase 5(애니·동기화) 진행 중**, **탄약·AC·메뉴/데스매치(1차) 반영**
 - 완료 핵심: GAS 데미지 파이프라인, 무기 3슬롯/히트스캔·근접, HUD(체력/탄약) 이벤트 갱신, 로컬 플레이어 전용 크로스헤어 표시, 헤드샷 판정 안정화, 사망 기본 로직, 탄피(`AmmoEject`) 배출
-- 보류/잔여: 캐릭터 메쉬 이슈 기반 애니 마무리, **무기 장착 애니**, 게임모드/매치 플로우, **헤드샷·연속킬(더블~펜타) 등 추가 사운드**
+- 추가 반영(코드): **탄창+예비탄(`ReserveAmmo` 복제, `MaxCarryAmmo`·`UWeaponDataAsset`)**, **HUD 탄약 `탄창 / 예비`(예비 없으면 `탄창 / 탄창 최대`)**, **크로스헤어** 무기 텍스처 없을 때 `UFPSCombatComponent` 기본 텍스처(에디터 지정, 엔진 내장 경로 미사용), **`UFPSAttributeSet` Armor/MaxArmor(AC)** 및 피해 시 방어 먼저 소모, **`AFPSDeathmatchGameMode`**(킬 시 `PlayerState` 점수·목표 킬 로그), **메뉴 1차** — `AFPSMainMenuGameMode`, `AFPSMenuPlayerController`, `UFPSMainMenuWidget` / `UFPSLobbyWidget`(에디터에서 WBP·클래스 지정 필요)
+- 보류/잔여: 캐릭터 메쉬 이슈 기반 애니 마무리, **무기 장착 애니**, 데스매치 **매치 종료·승리 UI·맵 전환**, **미니맵**, **헤드샷·연속킬(더블~펜타) 등 추가 사운드**, AC **기본 GE·밸런스** 정리
 
 ## 빠른 링크
 
@@ -36,6 +37,25 @@
 - 진행 저장: `SaveGame` 또는 백엔드(계정 연동 시)
 - 보상·재화·경험치: `PlayerState`·서브시스템·데이터 테이블 등으로 설계 분리
 
+## 게임플레이 목표 (추가 예정)
+
+문서에만 적어 둔 **설계 방향**이다. 실제 수치·루프는 구현·밸런스 단계에서 조정 가능.
+
+### 무기·탄약·드랍/픽업
+
+- **보유 탄약(목표 수치):** 라이플 **180발**, 스나이퍼 라이플 **30발**, 권총 **48발** (탄창 용량 vs 예비탄 분리는 데이터/무기별로 정리)
+- **무기가 처음 생성될 때:** 해당 무기 기준 **풀 탄약**으로 스폰
+- **드랍 후 픽업 일관성(멀티):** 클라이언트 1이 장착 중인 무기로 **탄을 모두 소비한 뒤** 버리면, 클라이언트 2가 그 무기를 주웠을 때에도 **탄창·예비 상태가 동일**해야 함 → `AmmoInMagazine`·`ReserveAmmo` 등 **서버 권한 + 복제**로 맞춤(회귀·엣지는 플레이 테스트로 점검)
+
+### HP·AC(방어)
+
+- **HP:** 기존 체력 파이프라인(GAS `Health` / `MaxHealth`)
+- **AC:** `UFPSAttributeSet`에 **`Armor` / `MaxArmor`** 추가, 들어오는 `Damage` 처리 시 **방어량만큼 먼저 깎인 뒤** 체력에 반영(에디터에서 `DefaultAttributesEffect` 등으로 초기·최대 방어 수치 지정)
+
+### 미니맵
+
+- 플레이어 위치·기본 방향 등을 보여 주는 **미니맵 UI** 추가(표시 범위·적/아군 표시 규칙은 이후 정리)
+
 ## 진행 요약
 
 - [x] 전투 MVP: 라이플/권총/스나이퍼/칼 기본 전투 루프, GAS 데미지/체력 반영
@@ -56,6 +76,12 @@
 - [x] `FPSCombatComponent`: 미사용 변수 `CrosshairAimFactor` 제거 (실동작 영향 없음)
 - [x] `WeaponBase`: 카메라 조준점 기준으로 총구 시작점 탄도 정렬(히트스캔/발사체 공통) 개선
 - [x] 킬로그: 서버 킬 이벤트 수집 후 클라이언트 HUD에 `Killer -> Victim (Weapon)` 표시
+- [x] 탄약: `WeaponBase` 예비탄 `ReserveAmmo` 복제, `MaxCarryAmmo`·`UWeaponDataAsset::MaxCarryAmmo`, 재장전 시 예비→탄창 보충(라이플 180 / 스나 30 / 권총 48 — 클래스 기본값)
+- [x] HUD 탄약: `UFPSHUDWidget`에서 **`탄창 / 예비`**, 예비 없을 때 **`탄창 / 탄창 최대`**
+- [x] 크로스헤어: 무기 텍스처 없을 때 `UFPSCombatComponent` **DefaultCrosshair*** 폴백(엔진 리소스 하드코딩 없음)
+- [x] GAS AC: `UFPSAttributeSet` `Armor`·`MaxArmor`, 피해 처리 시 방어 우선 소모
+- [x] `AFPSGameMode::ReportKill` **virtual**, `AFPSDeathmatchGameMode`(킬 점수·`KillsToWin`)
+- [x] 메뉴 C++ 베이스: `AFPSMainMenuGameMode`, `AFPSMenuPlayerController`, `UFPSMainMenuWidget`, `UFPSLobbyWidget`(`OpenLevel` + `listen?game=...FPSDeathmatchGameMode`)
 
 ## 다음 작업 (우선순위)
 
@@ -66,11 +92,15 @@
 5. **피격 판정 보강:** neck/head 본 이름 기반 헤드샷 판정 확장 여부 검토
 6. **무기 장착 애니메이션:** 슬롯 전환·픽업 직후 Equip 몽타주(또는 ABP 상태), 필요 시 원격 플레이어 동기화
 7. **킬·헤드샷 사운드:** 헤드샷 확정음, 더블킬·멀티킬·쿼드라킬·펜타킬(연속 킬 윈도우·재생 주체는 구현 시 정리)
+8. **데스매치 마무리:** 목표 킬 달성 시 **매치 종료·승자 표시·맵/메뉴 복귀** 등 규칙 연결
+9. **AC 밸런스:** `DefaultAttributesEffect`·GameplayEffect로 초기 방어·회복·경감 % 등 튜닝
+10. **미니맵:** 위젯·월드 미러 등 방식 선택 후 로컬 플레이어 기준 표시
+11. **탄약·멀티 QA:** 드랍/픽업·장전 후 HUD·복제 **회귀 테스트**
 
 ## 기존 메타 작업 (나중에)
 
-- [ ] 게임모드: 데스매치 GameMode 구현(승리/종료 규칙 포함)
-- [ ] 플로우: `GameStartMap -> Lobby` 이동 + `CreateGame` / `JoinGame` 기능 연결
+- [~] 게임모드: **`AFPSDeathmatchGameMode`**(킬 점수·목표 킬 로그) — **종료/승리 플로우·UI**는 미구현
+- [~] 플로우: C++ **메인/로비 위젯** 제공 — 에디터에서 **WBP·맵·GameMode 오버라이드** 연결, `CreateGame` / `JoinGame` 고도화는 추후
 - [ ] 캐릭터 메쉬 이슈 수정: 메쉬 이슈 해결 후 몽타주/원격 애니 동기화 묶음 처리
 - [ ] 사운드 추가: 재장전, 칼 공격, **헤드샷·더블/멀티/쿼드/펜타킬**, 무기 장착(Equip) 등 우선 적용
 

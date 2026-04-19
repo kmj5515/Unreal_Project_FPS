@@ -10,6 +10,8 @@ UFPSAttributeSet::UFPSAttributeSet()
 	InitHealth(0.f);
 	InitMaxHealth(1.f);
 	InitMoveSpeed(0.f);
+	InitArmor(0.f);
+	InitMaxArmor(0.f);
 	InitDamage(0.f);
 }
 
@@ -20,6 +22,8 @@ void UFPSAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 	DOREPLIFETIME_CONDITION_NOTIFY(UFPSAttributeSet, Health, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UFPSAttributeSet, MaxHealth, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UFPSAttributeSet, MoveSpeed, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UFPSAttributeSet, Armor, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UFPSAttributeSet, MaxArmor, COND_None, REPNOTIFY_Always);
 }
 
 void UFPSAttributeSet::OnRep_Health(const FGameplayAttributeData& OldValue)
@@ -37,6 +41,16 @@ void UFPSAttributeSet::OnRep_MoveSpeed(const FGameplayAttributeData& OldValue)
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UFPSAttributeSet, MoveSpeed, OldValue);
 }
 
+void UFPSAttributeSet::OnRep_Armor(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UFPSAttributeSet, Armor, OldValue);
+}
+
+void UFPSAttributeSet::OnRep_MaxArmor(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UFPSAttributeSet, MaxArmor, OldValue);
+}
+
 void UFPSAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
 {
 	Super::PreAttributeChange(Attribute, NewValue);
@@ -46,6 +60,14 @@ void UFPSAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, f
 		NewValue = FMath::Max(1.f, NewValue);
 	}
 	else if (Attribute == GetMoveSpeedAttribute())
+	{
+		NewValue = FMath::Max(0.f, NewValue);
+	}
+	else if (Attribute == GetArmorAttribute())
+	{
+		NewValue = FMath::Clamp(NewValue, 0.f, GetMaxArmor());
+	}
+	else if (Attribute == GetMaxArmorAttribute())
 	{
 		NewValue = FMath::Max(0.f, NewValue);
 	}
@@ -100,7 +122,16 @@ void UFPSAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbac
 				DamagedCharacter->RecordDamageSource(EventInstigator, DamageCauser);
 			}
 
-			SetHealth(FMath::Clamp(GetHealth() - LocalDamage, 0.f, GetMaxHealth()));
+			float RemainingDamage = LocalDamage;
+			const float CurrentArmor = GetArmor();
+			if (CurrentArmor > 0.f && RemainingDamage > 0.f)
+			{
+				const float Absorbed = FMath::Min(CurrentArmor, RemainingDamage);
+				SetArmor(FMath::Max(0.f, CurrentArmor - Absorbed));
+				RemainingDamage -= Absorbed;
+			}
+
+			SetHealth(FMath::Clamp(GetHealth() - RemainingDamage, 0.f, GetMaxHealth()));
 		}
 	}
 	else if (Data.EvaluatedData.Attribute == GetHealthAttribute())
@@ -125,5 +156,14 @@ void UFPSAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbac
 	else if (Data.EvaluatedData.Attribute == GetMoveSpeedAttribute())
 	{
 		SetMoveSpeed(FMath::Max(0.f, GetMoveSpeed()));
+	}
+	else if (Data.EvaluatedData.Attribute == GetArmorAttribute())
+	{
+		SetArmor(FMath::Clamp(GetArmor(), 0.f, GetMaxArmor()));
+	}
+	else if (Data.EvaluatedData.Attribute == GetMaxArmorAttribute())
+	{
+		SetMaxArmor(FMath::Max(0.f, GetMaxArmor()));
+		SetArmor(FMath::Clamp(GetArmor(), 0.f, GetMaxArmor()));
 	}
 }

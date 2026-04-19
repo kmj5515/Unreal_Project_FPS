@@ -38,7 +38,7 @@ void UFPSAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	if (const ABaseFPSCharacter* FPSChar = Cast<ABaseFPSCharacter>(OwningCharacter))
 	{
 		bDead = FPSChar->IsDead();
-		bWeaponEquipped = (FPSChar->CombatComponent && FPSChar->CombatComponent->GetCurrentWeapon() != nullptr);
+		bWeaponEquipped = FPSChar->IsArmed();
 	}
 
 	if (bDead)

@@ -60,6 +60,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Weapon|Ammo")
 	int32 GetMagazineSize() const { return MagazineSize; }
 
+	UFUNCTION(BlueprintPure, Category = "Weapon|Ammo")
+	int32 GetReserveAmmo() const { return ReserveAmmo; }
+
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	EFPSWeaponSlot GetWeaponSlot() const { return WeaponSlot; }
 
@@ -77,6 +80,8 @@ protected:
 	void FireOnce();
 	void ResetFireGate();
 	void FinishReload();
+	void ApplyCarryAmmoDistribution();
+	void BroadcastAmmoToOwner();
 	bool CanReload() const;
 	bool GetAimStartEnd(FVector& OutStart, FVector& OutEnd) const;
 	bool PerformHitscanTrace(FHitResult& OutHit, const FVector& Start, const FVector& End) const;
@@ -99,6 +104,9 @@ protected:
 		bool bHit,
 		const FVector_NetQuantize& ImpactPoint);
 
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_PlayFireMontage(UAnimMontage* MontageToPlay);
+
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_PlayReloadMontage(UAnimMontage* MontageToPlay);
 
@@ -107,6 +115,9 @@ protected:
 
 	UFUNCTION()
 	void OnRep_AmmoInMagazine();
+
+	UFUNCTION()
+	void OnRep_ReserveAmmo();
 
 	UFUNCTION()
 	void OnRep_WeaponState();
@@ -169,6 +180,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Stats", meta = (ClampMin = "1"))
 	int32 MagazineSize = 15;
 
+	/** Total ammo cap (mag + reserve). 0 = infinite reserve (reload always fills mag). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Stats", meta = (ClampMin = "0"))
+	int32 MaxCarryAmmo = 0;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Stats")
 	bool bFullAuto = true;
 
@@ -213,6 +228,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|SFX")
 	TObjectPtr<USoundBase> FireSound;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Animation")
+	TObjectPtr<UAnimMontage> FireMontage;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Animation")
 	TObjectPtr<UAnimMontage> ReloadMontage;
@@ -273,4 +291,7 @@ protected:
 
 	UPROPERTY(ReplicatedUsing = OnRep_AmmoInMagazine)
 	int32 AmmoInMagazine = 15;
+
+	UPROPERTY(ReplicatedUsing = OnRep_ReserveAmmo, BlueprintReadOnly, Category = "Weapon|Ammo")
+	int32 ReserveAmmo = 0;
 };

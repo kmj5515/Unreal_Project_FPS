@@ -99,6 +99,10 @@ void AWeaponBase::BeginPlay()
 {
 	Super::BeginPlay();
 	ApplyWeaponDataFromAsset();
+	if (!WeaponData)
+	{
+		ApplyCarryAmmoDistribution();
+	}
 
 	if (HasAuthority() && PickupSphere)
 	{
@@ -157,7 +161,11 @@ void AWeaponBase::ApplyWeaponDataFromAsset()
 	}
 
 	MagazineSize = FMath::Max(1, WeaponData->MagazineSize);
-	AmmoInMagazine = MagazineSize;
+	if (WeaponData->MaxCarryAmmo > 0)
+	{
+		MaxCarryAmmo = WeaponData->MaxCarryAmmo;
+	}
+	ApplyCarryAmmoDistribution();
 }
 
 void AWeaponBase::InitializeWeapon(ABaseFPSCharacter* InOwnerCharacter, EFPSWeaponSlot InSlot)
@@ -176,10 +184,7 @@ void AWeaponBase::OnEquipped(const FName& AttachSocketName)
 
 	SetWeaponState(EFPSWeaponNetState::Equipped);
 
-	if (OwnerCharacter)
-	{
-		OwnerCharacter->NotifyAmmoChangedValues(AmmoInMagazine, MagazineSize);
-	}
+	BroadcastAmmoToOwner();
 }
 
 void AWeaponBase::OnUnequipped()
@@ -451,11 +456,9 @@ void AWeaponBase::FireOnce()
 	}
 
 	Multicast_PlayMuzzleFlash();
+	Multicast_PlayFireMontage(FireMontage);
 	AmmoInMagazine = FMath::Max(0, AmmoInMagazine - 1);
-	if (OwnerCharacter)
-	{
-		OwnerCharacter->NotifyAmmoChangedValues(AmmoInMagazine, MagazineSize);
-	}
+	BroadcastAmmoToOwner();
 
 	FHitResult Hit;
 	if (FireMode == EFPSFireMode::Projectile)
@@ -564,11 +567,21 @@ void AWeaponBase::FinishReload()
 	}
 
 	bIsReloading = false;
-	AmmoInMagazine = MagazineSize;
-	if (OwnerCharacter)
+	if (WeaponSlot != EFPSWeaponSlot::Melee)
 	{
-		OwnerCharacter->NotifyAmmoChangedValues(AmmoInMagazine, MagazineSize);
+		if (MaxCarryAmmo > 0)
+		{
+			const int32 Space = MagazineSize - AmmoInMagazine;
+			const int32 LoadAmount = FMath::Min(FMath::Max(0, Space), ReserveAmmo);
+			AmmoInMagazine += LoadAmount;
+			ReserveAmmo -= LoadAmount;
+		}
+		else
+		{
+			AmmoInMagazine = MagazineSize;
+		}
 	}
+	BroadcastAmmoToOwner();
 	Multicast_OnReloadFinished();
 	if (OwnerCharacter)
 	{
@@ -588,7 +601,47 @@ bool AWeaponBase::CanReload() const
 		return false;
 	}
 
-	return AmmoInMagazine < MagazineSize;
+	if (AmmoInMagazine >= MagazineSize)
+	{
+		return false;
+	}
+
+	if (MaxCarryAmmo > 0 && ReserveAmmo <= 0)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+void AWeaponBase::ApplyCarryAmmoDistribution()
+{
+	if (WeaponSlot == EFPSWeaponSlot::Melee)
+	{
+		ReserveAmmo = 0;
+		return;
+	}
+
+	if (MaxCarryAmmo <= 0)
+	{
+		ReserveAmmo = 0;
+		if (AmmoInMagazine <= 0)
+		{
+			AmmoInMagazine = MagazineSize;
+		}
+		return;
+	}
+
+	AmmoInMagazine = FMath::Min(MagazineSize, MaxCarryAmmo);
+	ReserveAmmo = FMath::Max(0, MaxCarryAmmo - AmmoInMagazine);
+}
+
+void AWeaponBase::BroadcastAmmoToOwner()
+{
+	if (OwnerCharacter)
+	{
+		OwnerCharacter->NotifyAmmoChangedValues(AmmoInMagazine, MagazineSize, ReserveAmmo);
+	}
 }
 
 bool AWeaponBase::GetAimStartEnd(FVector& OutStart, FVector& OutEnd) const
@@ -732,6 +785,28 @@ void AWeaponBase::Multicast_PlayMuzzleFlash_Implementation()
 			EAttachLocation::SnapToTarget);
 	}
 
+}
+
+void AWeaponBase::Multicast_PlayFireMontage_Implementation(UAnimMontage* MontageToPlay)
+{
+	if (GetNetMode() == NM_DedicatedServer || !OwnerCharacter || !MontageToPlay)
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* OwnerMesh = OwnerCharacter->GetMesh();
+	if (!OwnerMesh)
+	{
+		return;
+	}
+
+	UAnimInstance* OwnerAnim = OwnerMesh->GetAnimInstance();
+	if (!OwnerAnim)
+	{
+		return;
+	}
+
+	OwnerAnim->Montage_Play(MontageToPlay, 1.f);
 }
 
 void AWeaponBase::Multicast_PlayReloadMontage_Implementation(UAnimMontage* MontageToPlay)
@@ -964,24 +1039,24 @@ void AWeaponBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AWeaponBase, OwnerCharacter);
 	DOREPLIFETIME(AWeaponBase, AmmoInMagazine);
+	DOREPLIFETIME(AWeaponBase, ReserveAmmo);
 	DOREPLIFETIME(AWeaponBase, WeaponState);
 	DOREPLIFETIME(AWeaponBase, EquippedSocketName);
 }
 
 void AWeaponBase::OnRep_AmmoInMagazine()
 {
-	if (OwnerCharacter)
-	{
-		OwnerCharacter->NotifyAmmoChangedValues(AmmoInMagazine, MagazineSize);
-	}
+	BroadcastAmmoToOwner();
+}
+
+void AWeaponBase::OnRep_ReserveAmmo()
+{
+	BroadcastAmmoToOwner();
 }
 
 void AWeaponBase::OnRep_OwnerCharacter()
 {
-	if (OwnerCharacter)
-	{
-		OwnerCharacter->NotifyAmmoChangedValues(AmmoInMagazine, MagazineSize);
-	}
+	BroadcastAmmoToOwner();
 	ApplyWeaponState();
 }
 

@@ -9,6 +9,7 @@ class ABaseFPSCharacter;
 class AWeaponBase;
 class AFPSPlayerController;
 class AFPSGameHUD;
+class UTexture2D;
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class ARK_API UFPSCombatComponent : public UActorComponent
@@ -27,7 +28,7 @@ public:
 	void SetOverlappingWeapon(AWeaponBase* InWeapon);
 	void HandleServerInteract();
 
-	void NotifyAmmoChangedValues(int32 CurrentInMag, int32 InMagSize);
+	void NotifyAmmoChangedValues(int32 CurrentInMag, int32 InMagSize, int32 ReserveAmmo = 0);
 	void NotifyAmmoChanged();
 
 	void RequestEquipWeaponSlot(EFPSWeaponSlot Slot);
@@ -53,6 +54,7 @@ public:
 
 	int32 GetAmmoInMag() const { return HUDAmmoInMag; }
 	int32 GetMagSize() const { return HUDMagSize; }
+	int32 GetAmmoReserve() const { return HUDReserveAmmo; }
 	float GetCrosshairSpread() const { return CrosshairSpread; }
 
 protected:
@@ -92,6 +94,9 @@ private:
 	UFUNCTION()
 	void OnRep_HUDMagSize();
 
+	UFUNCTION()
+	void OnRep_HUDReserveAmmo();
+
 	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
 	FName WeaponAttachSocketName = FName(TEXT("Weapon"));
 
@@ -128,6 +133,9 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_HUDMagSize)
 	int32 HUDMagSize = 0;
 
+	UPROPERTY(ReplicatedUsing = OnRep_HUDReserveAmmo)
+	int32 HUDReserveAmmo = 0;
+
 	mutable TObjectPtr<AFPSPlayerController> CachedPlayerController;
 	mutable TObjectPtr<AFPSGameHUD> CachedHUD;
 
@@ -135,6 +143,21 @@ private:
 	float CrosshairInAirFactor = 0.f;
 	float CrosshairShootingFactor = 0.f;
 	float CrosshairSpread = 0.5f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Crosshair")
+	TObjectPtr<UTexture2D> DefaultCrosshairCenter;
+
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Crosshair")
+	TObjectPtr<UTexture2D> DefaultCrosshairLeft;
+
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Crosshair")
+	TObjectPtr<UTexture2D> DefaultCrosshairRight;
+
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Crosshair")
+	TObjectPtr<UTexture2D> DefaultCrosshairTop;
+
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Crosshair")
+	TObjectPtr<UTexture2D> DefaultCrosshairBottom;
 
 	UPROPERTY(EditDefaultsOnly, Category = "HUD|Crosshair", meta = (ClampMin = "0.0"))
 	float CrosshairInAirMax = 3.0f;
@@ -163,4 +186,6 @@ private:
 	int32 ConsecutiveShotCount = 0;
 
 	void UpdateCrosshairSpread(float DeltaTime);
+
+	UTexture2D* ResolveCrosshairTexture(UTexture2D* WeaponTexture, const TObjectPtr<UTexture2D>& SlotDefault) const;
 };

@@ -35,7 +35,7 @@ void UFPSHUDWidget::BindToCharacter(ABaseFPSCharacter* InCharacter)
 	AmmoChangedHandle = BoundCharacter->OnHUDAmmoChanged().AddUObject(this, &UFPSHUDWidget::HandleAmmoChanged);
 
 	SetHealth(BoundCharacter->GetHealthCurrent(), BoundCharacter->GetHealthMax());
-	SetAmmo(BoundCharacter->GetAmmoInMag(), BoundCharacter->GetMagSize());
+	SetAmmo(BoundCharacter->GetAmmoInMag(), BoundCharacter->GetMagSize(), BoundCharacter->GetAmmoReserve());
 }
 
 void UFPSHUDWidget::SetHealth(float Current, float Max)
@@ -45,10 +45,11 @@ void UFPSHUDWidget::SetHealth(float Current, float Max)
 	RefreshHealthText();
 }
 
-void UFPSHUDWidget::SetAmmo(int32 CurrentInMag, int32 InMagSize)
+void UFPSHUDWidget::SetAmmo(int32 CurrentInMag, int32 InMagSize, int32 InReserveAmmo)
 {
 	AmmoInMag = FMath::Max(0, CurrentInMag);
 	MagSize = FMath::Max(0, InMagSize);
+	ReserveAmmo = FMath::Max(0, InReserveAmmo);
 	RefreshAmmoText();
 }
 
@@ -85,14 +86,21 @@ void UFPSHUDWidget::RefreshHealthText()
 
 void UFPSHUDWidget::RefreshAmmoText()
 {
-	if (TextBlock_AmmoCurrent)
+	const int32 Denominator = (ReserveAmmo > 0) ? ReserveAmmo : MagSize;
+	const FText Combined = FText::FromString(FString::Printf(TEXT("%d / %d"), AmmoInMag, Denominator));
+
+	if (TextBlock_AmmoCurrent && TextBlock_AmmoMax)
 	{
 		TextBlock_AmmoCurrent->SetText(FText::AsNumber(AmmoInMag));
+		TextBlock_AmmoMax->SetText(FText::AsNumber(Denominator));
 	}
-
-	if (TextBlock_AmmoMax)
+	else if (TextBlock_AmmoCurrent)
 	{
-		TextBlock_AmmoMax->SetText(FText::AsNumber(MagSize));
+		TextBlock_AmmoCurrent->SetText(Combined);
+	}
+	else if (TextBlock_AmmoMax)
+	{
+		TextBlock_AmmoMax->SetText(Combined);
 	}
 }
 
@@ -121,9 +129,9 @@ void UFPSHUDWidget::HandleHealthChanged(float Current, float Max)
 	SetHealth(Current, Max);
 }
 
-void UFPSHUDWidget::HandleAmmoChanged(int32 CurrentInMag, int32 InMagSize)
+void UFPSHUDWidget::HandleAmmoChanged(int32 CurrentInMag, int32 InMagSize, int32 InReserveAmmo)
 {
-	SetAmmo(CurrentInMag, InMagSize);
+	SetAmmo(CurrentInMag, InMagSize, InReserveAmmo);
 }
 
 void UFPSHUDWidget::UnbindCharacterDelegates()

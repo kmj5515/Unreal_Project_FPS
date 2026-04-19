@@ -19,7 +19,7 @@ struct FOnAttributeChangeData;
 class UFPSHUDWidget;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FFPSHUDHealthChangedSignature, float, float);
-DECLARE_MULTICAST_DELEGATE_TwoParams(FFPSHUDAmmoChangedSignature, int32, int32);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FFPSHUDAmmoChangedSignature, int32, int32, int32);
 
 UCLASS()
 class ARK_API ABaseFPSCharacter : public ACharacter
@@ -56,12 +56,17 @@ public:
 	bool IsDead() const { return bDead; }
 
 	UFUNCTION(BlueprintPure, Category = "Combat")
+	bool IsArmed() const { return bIsArmed; }
+
+	void SetIsArmed(bool bNewArmed);
+
+	UFUNCTION(BlueprintPure, Category = "Combat")
 	UAnimMontage* GetDeathMontage() const { return DeathMontage; }
 
 	void NotifyReloadStarted();
 	void NotifyReloadFinished();
 	void NotifyAmmoChanged();
-	void NotifyAmmoChangedValues(int32 CurrentInMag, int32 InMagSize);
+	void NotifyAmmoChangedValues(int32 CurrentInMag, int32 InMagSize, int32 ReserveAmmo = 0);
 	void NotifyShotFired();
 
 	UFUNCTION(BlueprintPure, Category = "HUD")
@@ -77,12 +82,15 @@ public:
 	int32 GetMagSize() const;
 
 	UFUNCTION(BlueprintPure, Category = "HUD")
+	int32 GetAmmoReserve() const;
+
+	UFUNCTION(BlueprintPure, Category = "HUD")
 	float GetCrosshairSpread() const;
 
 	FFPSHUDHealthChangedSignature& OnHUDHealthChanged() { return HUDHealthChanged; }
 	FFPSHUDAmmoChangedSignature& OnHUDAmmoChanged() { return HUDAmmoChanged; }
 
-	void BroadcastHUDAmmoDirect(int32 AmmoInMag, int32 MagSize);
+	void BroadcastHUDAmmoDirect(int32 AmmoInMag, int32 MagSize, int32 ReserveAmmo = 0);
 	void RecordDamageSource(AController* EventInstigator, AActor* DamageCauser);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
@@ -207,6 +215,9 @@ protected:
 
 	UPROPERTY(ReplicatedUsing = OnRep_Dead, BlueprintReadOnly, Category = "Combat")
 	bool bDead = false;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Combat")
+	bool bIsArmed = false;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat")
 	TObjectPtr<UAnimMontage> DeathMontage;

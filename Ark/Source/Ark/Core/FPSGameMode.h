@@ -14,5 +14,5 @@ class ARK_API AFPSGameMode : public AGameModeBase
 
 public:
 	AFPSGameMode();
-	void ReportKill(AFPSPlayerState* KillerPlayerState, AFPSPlayerState* VictimPlayerState, AActor* DamageCauser);
+	virtual void ReportKill(AFPSPlayerState* KillerPlayerState, AFPSPlayerState* VictimPlayerState, AActor* DamageCauser);
 };

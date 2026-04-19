@@ -8,6 +8,7 @@ ASniperWeapon::ASniperWeapon()
 	RefireRate = 1.0f;
 	bFullAuto = false;
 	MagazineSize = 5;
+	MaxCarryAmmo = 30;
 	FireMode = EFPSFireMode::Projectile;
 	ProjectileInitialSpeed = 20000.f;
 }

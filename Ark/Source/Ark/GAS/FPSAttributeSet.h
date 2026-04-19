@@ -35,6 +35,15 @@ public:
 	FGameplayAttributeData MoveSpeed;
 	ATTRIBUTE_ACCESSORS(UFPSAttributeSet, MoveSpeed)
 
+	/** Ablative armor (AC): absorbs incoming damage before Health. */
+	UPROPERTY(BlueprintReadOnly, Category = "Attributes|AC", ReplicatedUsing = OnRep_Armor)
+	FGameplayAttributeData Armor;
+	ATTRIBUTE_ACCESSORS(UFPSAttributeSet, Armor)
+
+	UPROPERTY(BlueprintReadOnly, Category = "Attributes|AC", ReplicatedUsing = OnRep_MaxArmor)
+	FGameplayAttributeData MaxArmor;
+	ATTRIBUTE_ACCESSORS(UFPSAttributeSet, MaxArmor)
+
 	UPROPERTY(BlueprintReadOnly, Category = "Attributes")
 	FGameplayAttributeData Damage;
 	ATTRIBUTE_ACCESSORS(UFPSAttributeSet, Damage)
@@ -48,4 +57,10 @@ protected:
 
 	UFUNCTION()
 	void OnRep_MoveSpeed(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_Armor(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_MaxArmor(const FGameplayAttributeData& OldValue);
 };

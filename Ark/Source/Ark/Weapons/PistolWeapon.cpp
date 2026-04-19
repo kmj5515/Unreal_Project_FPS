@@ -9,4 +9,6 @@ APistolWeapon::APistolWeapon()
 	bFullAuto = false;
 	FireMode = EFPSFireMode::Projectile;
 	ProjectileInitialSpeed = 11000.f;
+	MagazineSize = 12;
+	MaxCarryAmmo = 48;
 }

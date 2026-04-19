@@ -705,11 +705,11 @@ void ABaseFPSCharacter::NotifyAmmoChanged()
 	BroadcastHUDAmmo();
 }
 
-void ABaseFPSCharacter::NotifyAmmoChangedValues(int32 CurrentInMag, int32 InMagSize)
+void ABaseFPSCharacter::NotifyAmmoChangedValues(int32 CurrentInMag, int32 InMagSize, int32 ReserveAmmo)
 {
 	if (CombatComponent)
 	{
-		CombatComponent->NotifyAmmoChangedValues(CurrentInMag, InMagSize);
+		CombatComponent->NotifyAmmoChangedValues(CurrentInMag, InMagSize, ReserveAmmo);
 	}
 }
 
@@ -742,6 +742,11 @@ int32 ABaseFPSCharacter::GetMagSize() const
 	return CombatComponent ? CombatComponent->GetMagSize() : 0;
 }
 
+int32 ABaseFPSCharacter::GetAmmoReserve() const
+{
+	return CombatComponent ? CombatComponent->GetAmmoReserve() : 0;
+}
+
 float ABaseFPSCharacter::GetCrosshairSpread() const
 {
 	return CombatComponent ? CombatComponent->GetCrosshairSpread() : 0.5f;
@@ -754,12 +759,12 @@ void ABaseFPSCharacter::BroadcastHUDHealth()
 
 void ABaseFPSCharacter::BroadcastHUDAmmo()
 {
-	HUDAmmoChanged.Broadcast(GetAmmoInMag(), GetMagSize());
+	HUDAmmoChanged.Broadcast(GetAmmoInMag(), GetMagSize(), GetAmmoReserve());
 }
 
-void ABaseFPSCharacter::BroadcastHUDAmmoDirect(int32 AmmoInMag, int32 MagSize)
+void ABaseFPSCharacter::BroadcastHUDAmmoDirect(int32 AmmoInMag, int32 MagSize, int32 ReserveAmmo)
 {
-	HUDAmmoChanged.Broadcast(AmmoInMag, MagSize);
+	HUDAmmoChanged.Broadcast(AmmoInMag, MagSize, ReserveAmmo);
 }
 
 void ABaseFPSCharacter::RecordDamageSource(AController* EventInstigator, AActor* DamageCauser)
@@ -778,4 +783,13 @@ void ABaseFPSCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ABaseFPSCharacter, bDead);
+	DOREPLIFETIME(ABaseFPSCharacter, bIsArmed);
+}
+
+void ABaseFPSCharacter::SetIsArmed(bool bNewArmed)
+{
+	if (HasAuthority())
+	{
+		bIsArmed = bNewArmed;
+	}
 }
