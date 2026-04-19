@@ -787,7 +787,7 @@ void AWeaponBase::Multicast_PlayMuzzleFlash_Implementation()
 
 }
 
-void AWeaponBase::Multicast_PlayFireMontage_Implementation(UAnimMontage* MontageToPlay)
+void AWeaponBase::PlayMontageOnOwner(UAnimMontage* MontageToPlay) const
 {
 	if (GetNetMode() == NM_DedicatedServer || !OwnerCharacter || !MontageToPlay)
 	{
@@ -809,28 +809,15 @@ void AWeaponBase::Multicast_PlayFireMontage_Implementation(UAnimMontage* Montage
 	OwnerAnim->Montage_Play(MontageToPlay, 1.f);
 }
 
+void AWeaponBase::Multicast_PlayFireMontage_Implementation(UAnimMontage* MontageToPlay)
+{
+	PlayMontageOnOwner(MontageToPlay);
+}
+
 void AWeaponBase::Multicast_PlayReloadMontage_Implementation(UAnimMontage* MontageToPlay)
 {
-	// Use RPC arguments for montages: ReloadMontage is not replicated; clients can have a null member even when
-	// the server has applied WeaponData, so relying on the UObject sent with the multicast fixes local playback.
-	if (GetNetMode() == NM_DedicatedServer || !OwnerCharacter || !MontageToPlay)
-	{
-		return;
-	}
-
-	USkeletalMeshComponent* OwnerMesh = OwnerCharacter->GetMesh();
-	if (!OwnerMesh)
-	{
-		return;
-	}
-
-	UAnimInstance* OwnerAnim = OwnerMesh->GetAnimInstance();
-	if (!OwnerAnim)
-	{
-		return;
-	}
-
-	OwnerAnim->Montage_Play(MontageToPlay, 1.f);
+	// Montage is passed as RPC arg — member may be null on clients before WeaponData replication.
+	PlayMontageOnOwner(MontageToPlay);
 }
 
 void AWeaponBase::Multicast_OnReloadFinished_Implementation()

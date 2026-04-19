@@ -282,6 +282,7 @@ protected:
 
 	FTimerHandle ReenablePickupSphereTimerHandle;
 	void EnablePickupSphereAfterDropBlock();
+	void PlayMontageOnOwner(UAnimMontage* MontageToPlay) const;
 
 	bool bIsFiring = false;
 	bool bIsReloading = false;
