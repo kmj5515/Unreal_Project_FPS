@@ -525,29 +525,7 @@ void UFPSCombatComponent::OnRep_CurrentWeapon()
 	}
 }
 
-void UFPSCombatComponent::OnRep_OverlappingWeapon()
-{
-}
-
-void UFPSCombatComponent::OnRep_HUDAmmoInMag()
-{
-	ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
-	if (OwningChar)
-	{
-		OwningChar->BroadcastHUDAmmoDirect(HUDAmmoInMag, HUDMagSize, HUDReserveAmmo);
-	}
-}
-
-void UFPSCombatComponent::OnRep_HUDMagSize()
-{
-	ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
-	if (OwningChar)
-	{
-		OwningChar->BroadcastHUDAmmoDirect(HUDAmmoInMag, HUDMagSize, HUDReserveAmmo);
-	}
-}
-
-void UFPSCombatComponent::OnRep_HUDReserveAmmo()
+void UFPSCombatComponent::OnRep_HUDAmmo()
 {
 	ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
 	if (OwningChar)

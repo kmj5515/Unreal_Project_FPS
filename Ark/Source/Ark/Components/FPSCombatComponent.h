@@ -86,16 +86,7 @@ private:
 	void OnRep_CurrentWeapon();
 
 	UFUNCTION()
-	void OnRep_OverlappingWeapon();
-
-	UFUNCTION()
-	void OnRep_HUDAmmoInMag();
-
-	UFUNCTION()
-	void OnRep_HUDMagSize();
-
-	UFUNCTION()
-	void OnRep_HUDReserveAmmo();
+	void OnRep_HUDAmmo();
 
 	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
 	FName WeaponAttachSocketName = FName(TEXT("Weapon"));
@@ -121,19 +112,19 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentWeapon)
 	TObjectPtr<AWeaponBase> CurrentWeapon;
 
-	UPROPERTY(ReplicatedUsing = OnRep_OverlappingWeapon)
+	UPROPERTY(Replicated)
 	TObjectPtr<AWeaponBase> OverlappingWeapon;
 
 	UPROPERTY(Replicated)
 	EFPSWeaponSlot CurrentWeaponSlot = EFPSWeaponSlot::Primary;
 
-	UPROPERTY(ReplicatedUsing = OnRep_HUDAmmoInMag)
+	UPROPERTY(ReplicatedUsing = OnRep_HUDAmmo)
 	int32 HUDAmmoInMag = 0;
 
-	UPROPERTY(ReplicatedUsing = OnRep_HUDMagSize)
+	UPROPERTY(ReplicatedUsing = OnRep_HUDAmmo)
 	int32 HUDMagSize = 0;
 
-	UPROPERTY(ReplicatedUsing = OnRep_HUDReserveAmmo)
+	UPROPERTY(ReplicatedUsing = OnRep_HUDAmmo)
 	int32 HUDReserveAmmo = 0;
 
 	mutable TObjectPtr<AFPSPlayerController> CachedPlayerController;
