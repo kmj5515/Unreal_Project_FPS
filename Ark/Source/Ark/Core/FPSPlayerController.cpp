@@ -1,6 +1,8 @@
 #include "FPSPlayerController.h"
 
 #include "../Characters/BaseFPSCharacter.h"
+#include "../Components/FPSCombatComponent.h"
+#include "../UI/FPSDebugToolWidget.h"
 #include "../UI/FPSHUDWidget.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
@@ -43,7 +45,29 @@ void AFPSPlayerController::BeginPlay()
 		}
 	}
 
+	if (DebugToolWidgetClass && !DebugToolWidget)
+	{
+		DebugToolWidget = CreateWidget<UFPSDebugToolWidget>(this, DebugToolWidgetClass);
+		if (DebugToolWidget)
+		{
+			DebugToolWidget->BindToPlayerController(this);
+			DebugToolWidget->AddToViewport(20);
+			bDebugToolVisible = false;
+			DebugToolWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+
 	BindHUDToCurrentPawn();
+}
+
+void AFPSPlayerController::SetupInputComponent()
+{
+	Super::SetupInputComponent();
+
+	if (InputComponent)
+	{
+		InputComponent->BindKey(ToggleDebugToolKey, IE_Pressed, this, &AFPSPlayerController::HandleToggleDebugToolPressed);
+	}
 }
 
 void AFPSPlayerController::OnPossess(APawn* InPawn)
@@ -111,5 +135,139 @@ void AFPSPlayerController::ClientNotifyKillEvent_Implementation(bool bWasHeadsho
 	if (StreakSound)
 	{
 		UGameplayStatics::PlaySound2D(this, StreakSound);
+	}
+}
+
+void AFPSPlayerController::HandleToggleDebugToolPressed()
+{
+	ToggleDebugTool();
+}
+
+void AFPSPlayerController::ToggleDebugTool()
+{
+	if (!DebugToolWidgetClass)
+	{
+		return;
+	}
+
+	if (!DebugToolWidget)
+	{
+		DebugToolWidget = CreateWidget<UFPSDebugToolWidget>(this, DebugToolWidgetClass);
+		if (!DebugToolWidget)
+		{
+			return;
+		}
+
+		DebugToolWidget->BindToPlayerController(this);
+		DebugToolWidget->AddToViewport(20);
+	}
+
+	bDebugToolVisible = !bDebugToolVisible;
+	DebugToolWidget->SetVisibility(bDebugToolVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+}
+
+void AFPSPlayerController::SetHitboxDebugEnabled(bool bEnabled)
+{
+	bHitboxDebugEnabled = bEnabled;
+	ApplyHitboxDebugCommand();
+}
+
+void AFPSPlayerController::ApplyHitboxDebugCommand()
+{
+	const FString& Command = bHitboxDebugEnabled ? HitboxDebugOnCommand : HitboxDebugOffCommand;
+	if (!Command.IsEmpty())
+	{
+		ConsoleCommand(Command, true);
+	}
+}
+
+void AFPSPlayerController::SetTraceDebugEnabled(bool bEnabled)
+{
+	bTraceDebugEnabled = bEnabled;
+	if (ABaseFPSCharacter* FPSChar = GetPawn<ABaseFPSCharacter>())
+	{
+		if (FPSChar->CombatComponent)
+		{
+			FPSChar->CombatComponent->SetTraceDebugEnabled(bTraceDebugEnabled);
+		}
+	}
+}
+
+void AFPSPlayerController::SetDpsMeasureEnabled(bool bEnabled)
+{
+	bDpsMeasuring = bEnabled;
+	if (ABaseFPSCharacter* FPSChar = GetPawn<ABaseFPSCharacter>())
+	{
+		if (FPSChar->CombatComponent)
+		{
+			FPSChar->CombatComponent->SetDpsMeasureEnabled(bDpsMeasuring);
+		}
+	}
+}
+
+void AFPSPlayerController::GetDpsStats(int32& OutShotCount, float& OutTotalDamage, float& OutElapsedSeconds, float& OutDps) const
+{
+	OutShotCount = 0;
+	OutTotalDamage = 0.f;
+	OutElapsedSeconds = 0.f;
+	OutDps = 0.f;
+
+	if (const ABaseFPSCharacter* FPSChar = GetPawn<ABaseFPSCharacter>())
+	{
+		if (FPSChar->CombatComponent)
+		{
+			FPSChar->CombatComponent->GetDpsStats(OutShotCount, OutTotalDamage, OutElapsedSeconds, OutDps);
+		}
+	}
+}
+
+void AFPSPlayerController::SetCurrentWeaponSpread(float NewSpreadDeg)
+{
+	if (ABaseFPSCharacter* FPSChar = GetPawn<ABaseFPSCharacter>())
+	{
+		if (FPSChar->CombatComponent)
+		{
+			FPSChar->CombatComponent->SetCurrentWeaponSpread(NewSpreadDeg);
+		}
+	}
+}
+
+float AFPSPlayerController::GetCurrentWeaponSpread() const
+{
+	if (const ABaseFPSCharacter* FPSChar = GetPawn<ABaseFPSCharacter>())
+	{
+		if (FPSChar->CombatComponent)
+		{
+			return FPSChar->CombatComponent->GetCurrentWeaponSpread();
+		}
+	}
+
+	return 0.f;
+}
+
+void AFPSPlayerController::SetCurrentWeaponAmmoDebug(int32 NewAmmoInMagazine, int32 NewMagazineSize, int32 NewMaxCarryAmmo)
+{
+	if (ABaseFPSCharacter* FPSChar = GetPawn<ABaseFPSCharacter>())
+	{
+		if (FPSChar->CombatComponent)
+		{
+			FPSChar->CombatComponent->SetCurrentWeaponAmmoDebug(NewAmmoInMagazine, NewMagazineSize, NewMaxCarryAmmo);
+		}
+	}
+}
+
+void AFPSPlayerController::GetCurrentWeaponAmmoDebug(int32& OutAmmoInMagazine, int32& OutMagazineSize, int32& OutReserveAmmo, int32& OutMaxCarryAmmo) const
+{
+	OutAmmoInMagazine = 0;
+	OutMagazineSize = 0;
+	OutReserveAmmo = 0;
+	OutMaxCarryAmmo = 0;
+
+	if (const ABaseFPSCharacter* FPSChar = GetPawn<ABaseFPSCharacter>())
+	{
+		if (FPSChar->CombatComponent)
+		{
+			FPSChar->CombatComponent->GetCurrentWeaponAmmoDebug(OutAmmoInMagazine, OutMagazineSize, OutReserveAmmo, OutMaxCarryAmmo);
+		}
 	}
 }

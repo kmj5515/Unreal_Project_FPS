@@ -746,6 +746,7 @@ void ABaseFPSCharacter::NotifyShotFired()
 	if (CombatComponent)
 	{
 		CombatComponent->AddCrosshairShootingImpulse();
+		CombatComponent->NotifyLocalShotFiredForDebug();
 	}
 	ApplyLocalRecoilKick();
 }

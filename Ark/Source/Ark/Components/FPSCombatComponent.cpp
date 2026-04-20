@@ -43,6 +43,7 @@ void UFPSCombatComponent::BeginPlay()
 	if (GetOwner() && GetOwner()->HasAuthority())
 	{
 		SpawnDefaultLoadout();
+		ApplyTraceDebugStateToWeapons();
 		ApplyCurrentWeaponVisibility();
 	}
 }
@@ -162,6 +163,18 @@ void UFPSCombatComponent::ApplyCurrentWeaponVisibility()
 		const bool bIsCurrent = (Weapon == CurrentWeapon);
 		Weapon->SetActorHiddenInGame(!bIsCurrent);
 		Weapon->SetActorEnableCollision(bIsCurrent);
+	}
+}
+
+void UFPSCombatComponent::ApplyTraceDebugStateToWeapons() const
+{
+	AWeaponBase* AllWeapons[] = { PrimaryWeapon, SecondaryWeapon, MeleeWeapon };
+	for (AWeaponBase* Weapon : AllWeapons)
+	{
+		if (Weapon)
+		{
+			Weapon->SetTraceDebugEnabled(bTraceDebugEnabled);
+		}
 	}
 }
 
@@ -305,12 +318,147 @@ void UFPSCombatComponent::AddCrosshairShootingImpulse()
 		CrosshairShootingFactorMax);
 }
 
+void UFPSCombatComponent::NotifyLocalShotFiredForDebug()
+{
+	const ABaseFPSCharacter* OwningChar = GetOwningFPSCharacter();
+	if (!bDpsMeasuring || !OwningChar || !OwningChar->IsLocallyControlled())
+	{
+		return;
+	}
+
+	if (!GetWorld())
+	{
+		return;
+	}
+
+	++DpsShotCount;
+	if (CurrentWeapon)
+	{
+		DpsTotalDamage += CurrentWeapon->GetDamage();
+	}
+}
+
 void UFPSCombatComponent::StopCurrentWeaponFire()
 {
 	if (CurrentWeapon)
 	{
 		CurrentWeapon->StopFire();
 	}
+}
+
+void UFPSCombatComponent::SetTraceDebugEnabled(bool bEnabled)
+{
+	if (!GetOwner())
+	{
+		return;
+	}
+
+	if (!GetOwner()->HasAuthority())
+	{
+		ServerSetTraceDebugEnabled(bEnabled);
+		return;
+	}
+
+	bTraceDebugEnabled = bEnabled;
+	ApplyTraceDebugStateToWeapons();
+}
+
+void UFPSCombatComponent::SetDpsMeasureEnabled(bool bEnabled)
+{
+	if (!GetOwner())
+	{
+		return;
+	}
+
+	if (!GetOwner()->HasAuthority())
+	{
+		ServerSetDpsMeasureEnabled(bEnabled);
+		return;
+	}
+
+	bDpsMeasuring = bEnabled;
+	ResetDpsStats();
+}
+
+void UFPSCombatComponent::ResetDpsStats()
+{
+	DpsShotCount = 0;
+	DpsTotalDamage = 0.f;
+	DpsStartTimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+}
+
+void UFPSCombatComponent::GetDpsStats(int32& OutShotCount, float& OutTotalDamage, float& OutElapsedSeconds, float& OutDps) const
+{
+	OutShotCount = DpsShotCount;
+	OutTotalDamage = DpsTotalDamage;
+	const float CurrentSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : DpsStartTimeSeconds;
+	OutElapsedSeconds = FMath::Max(0.f, CurrentSeconds - DpsStartTimeSeconds);
+	OutDps = (OutElapsedSeconds > KINDA_SMALL_NUMBER) ? (OutTotalDamage / OutElapsedSeconds) : 0.f;
+}
+
+void UFPSCombatComponent::SetCurrentWeaponSpread(float NewSpreadDeg)
+{
+	if (!GetOwner())
+	{
+		return;
+	}
+
+	if (!GetOwner()->HasAuthority())
+	{
+		ServerSetCurrentWeaponSpread(NewSpreadDeg);
+		return;
+	}
+
+	if (CurrentWeapon)
+	{
+		CurrentWeapon->DebugSetBulletSpreadPerCrosshairDeg(NewSpreadDeg);
+	}
+}
+
+float UFPSCombatComponent::GetCurrentWeaponSpread() const
+{
+	return CurrentWeapon ? CurrentWeapon->GetBulletSpreadPerCrosshairDeg() : 0.f;
+}
+
+void UFPSCombatComponent::SetCurrentWeaponAmmoDebug(int32 NewAmmoInMagazine, int32 NewMagazineSize, int32 NewMaxCarryAmmo)
+{
+	if (!GetOwner())
+	{
+		return;
+	}
+
+	if (!GetOwner()->HasAuthority())
+	{
+		ServerSetCurrentWeaponAmmoDebug(NewAmmoInMagazine, NewMagazineSize, NewMaxCarryAmmo);
+		return;
+	}
+
+	if (CurrentWeapon)
+	{
+		CurrentWeapon->DebugSetAmmoState(NewAmmoInMagazine, NewMagazineSize, NewMaxCarryAmmo);
+		NotifyAmmoChangedValues(
+			CurrentWeapon->GetCurrentAmmoInMagazine(),
+			CurrentWeapon->GetMagazineSize(),
+			CurrentWeapon->GetReserveAmmo());
+	}
+}
+
+void UFPSCombatComponent::GetCurrentWeaponAmmoDebug(int32& OutAmmoInMagazine, int32& OutMagazineSize, int32& OutReserveAmmo, int32& OutMaxCarryAmmo) const
+{
+	OutAmmoInMagazine = 0;
+	OutMagazineSize = 0;
+	OutReserveAmmo = 0;
+	OutMaxCarryAmmo = 0;
+
+	if (!CurrentWeapon)
+	{
+		return;
+	}
+
+	OutAmmoInMagazine = CurrentWeapon->GetCurrentAmmoInMagazine();
+	OutMagazineSize = CurrentWeapon->GetMagazineSize();
+	OutReserveAmmo = CurrentWeapon->GetReserveAmmo();
+	OutMaxCarryAmmo = CurrentWeapon->GetMaxCarryAmmo();
 }
 
 void UFPSCombatComponent::ServerEquipWeapon_Implementation(EFPSWeaponSlot Slot)
@@ -473,6 +621,26 @@ void UFPSCombatComponent::ServerDropCurrentWeapon_Implementation()
 		NotifyAmmoChangedValues(0, 0, 0);
 		OwningChar->SetIsArmed(false);
 	}
+}
+
+void UFPSCombatComponent::ServerSetTraceDebugEnabled_Implementation(bool bEnabled)
+{
+	SetTraceDebugEnabled(bEnabled);
+}
+
+void UFPSCombatComponent::ServerSetDpsMeasureEnabled_Implementation(bool bEnabled)
+{
+	SetDpsMeasureEnabled(bEnabled);
+}
+
+void UFPSCombatComponent::ServerSetCurrentWeaponSpread_Implementation(float NewSpreadDeg)
+{
+	SetCurrentWeaponSpread(NewSpreadDeg);
+}
+
+void UFPSCombatComponent::ServerSetCurrentWeaponAmmoDebug_Implementation(int32 NewAmmoInMagazine, int32 NewMagazineSize, int32 NewMaxCarryAmmo)
+{
+	SetCurrentWeaponAmmoDebug(NewAmmoInMagazine, NewMagazineSize, NewMaxCarryAmmo);
 }
 
 void UFPSCombatComponent::NotifyAmmoChangedValues(int32 CurrentInMag, int32 InMagSize, int32 ReserveAmmo)

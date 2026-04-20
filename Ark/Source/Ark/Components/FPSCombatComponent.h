@@ -44,8 +44,16 @@ public:
 	void HandleReloadStarted();
 	void HandleDropCurrentWeapon();
 	void AddCrosshairShootingImpulse();
+	void NotifyLocalShotFiredForDebug();
 
 	void StopCurrentWeaponFire();
+	void SetTraceDebugEnabled(bool bEnabled);
+	void SetDpsMeasureEnabled(bool bEnabled);
+	void GetDpsStats(int32& OutShotCount, float& OutTotalDamage, float& OutElapsedSeconds, float& OutDps) const;
+	void SetCurrentWeaponSpread(float NewSpreadDeg);
+	float GetCurrentWeaponSpread() const;
+	void SetCurrentWeaponAmmoDebug(int32 NewAmmoInMagazine, int32 NewMagazineSize, int32 NewMaxCarryAmmo);
+	void GetCurrentWeaponAmmoDebug(int32& OutAmmoInMagazine, int32& OutMagazineSize, int32& OutReserveAmmo, int32& OutMaxCarryAmmo) const;
 
 	AWeaponBase* GetOverlappingWeapon() const { return OverlappingWeapon; }
 	AWeaponBase* GetCurrentWeapon() const { return CurrentWeapon; }
@@ -78,6 +86,18 @@ private:
 
 	UFUNCTION(Server, Reliable)
 	void ServerDropCurrentWeapon();
+
+	UFUNCTION(Server, Reliable)
+	void ServerSetTraceDebugEnabled(bool bEnabled);
+
+	UFUNCTION(Server, Reliable)
+	void ServerSetDpsMeasureEnabled(bool bEnabled);
+
+	UFUNCTION(Server, Reliable)
+	void ServerSetCurrentWeaponSpread(float NewSpreadDeg);
+
+	UFUNCTION(Server, Reliable)
+	void ServerSetCurrentWeaponAmmoDebug(int32 NewAmmoInMagazine, int32 NewMagazineSize, int32 NewMaxCarryAmmo);
 
 	UFUNCTION()
 	void OnRep_PossessedWeapons();
@@ -175,8 +195,15 @@ private:
 	float CrosshairShotStackMultiplierMax = 2.2f;
 
 	int32 ConsecutiveShotCount = 0;
+	bool bTraceDebugEnabled = false;
+	bool bDpsMeasuring = false;
+	int32 DpsShotCount = 0;
+	float DpsTotalDamage = 0.f;
+	float DpsStartTimeSeconds = 0.f;
 
 	void UpdateCrosshairSpread(float DeltaTime);
+	void ApplyTraceDebugStateToWeapons() const;
+	void ResetDpsStats();
 
 	UTexture2D* ResolveCrosshairTexture(UTexture2D* WeaponTexture, const TObjectPtr<UTexture2D>& SlotDefault) const;
 };

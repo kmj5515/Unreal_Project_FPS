@@ -63,6 +63,19 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Weapon|Ammo")
 	int32 GetReserveAmmo() const { return ReserveAmmo; }
 
+	UFUNCTION(BlueprintPure, Category = "Weapon|Ammo")
+	int32 GetMaxCarryAmmo() const { return MaxCarryAmmo; }
+
+	UFUNCTION(BlueprintPure, Category = "Weapon|Spread")
+	float GetBulletSpreadPerCrosshairDeg() const { return BulletSpreadPerCrosshairDeg; }
+
+	UFUNCTION(BlueprintPure, Category = "Weapon|Stats")
+	float GetDamage() const { return Damage; }
+
+	void SetTraceDebugEnabled(bool bEnabled) { bDebugDrawTrace = bEnabled; }
+	void DebugSetBulletSpreadPerCrosshairDeg(float NewSpreadDeg);
+	void DebugSetAmmoState(int32 NewAmmoInMagazine, int32 NewMagazineSize, int32 NewMaxCarryAmmo);
+
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	EFPSWeaponSlot GetWeaponSlot() const { return WeaponSlot; }
 

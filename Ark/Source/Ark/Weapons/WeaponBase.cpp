@@ -663,6 +663,30 @@ void AWeaponBase::BroadcastAmmoToOwner()
 	}
 }
 
+void AWeaponBase::DebugSetBulletSpreadPerCrosshairDeg(float NewSpreadDeg)
+{
+	BulletSpreadPerCrosshairDeg = FMath::Clamp(NewSpreadDeg, 0.0f, 15.0f);
+}
+
+void AWeaponBase::DebugSetAmmoState(int32 NewAmmoInMagazine, int32 NewMagazineSize, int32 NewMaxCarryAmmo)
+{
+	MagazineSize = FMath::Max(1, NewMagazineSize);
+	MaxCarryAmmo = FMath::Max(0, NewMaxCarryAmmo);
+
+	AmmoInMagazine = FMath::Clamp(NewAmmoInMagazine, 0, MagazineSize);
+	if (MaxCarryAmmo > 0)
+	{
+		AmmoInMagazine = FMath::Min(AmmoInMagazine, MaxCarryAmmo);
+		ReserveAmmo = FMath::Max(0, MaxCarryAmmo - AmmoInMagazine);
+	}
+	else
+	{
+		ReserveAmmo = 0;
+	}
+
+	BroadcastAmmoToOwner();
+}
+
 bool AWeaponBase::GetAimStartEnd(FVector& OutStart, FVector& OutEnd) const
 {
 	if (!OwnerCharacter)
