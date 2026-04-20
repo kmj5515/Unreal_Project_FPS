@@ -6,6 +6,7 @@
 
 class UInputMappingContext;
 class UFPSHUDWidget;
+class USoundBase;
 
 UCLASS()
 class ARK_API AFPSPlayerController : public APlayerController
@@ -17,6 +18,9 @@ public:
 
 	UFUNCTION(Client, Reliable)
 	void ClientReceiveKillLog(const FString& KillerName, const FString& VictimName, const FString& WeaponName);
+
+	UFUNCTION(Client, Reliable)
+	void ClientNotifyKillEvent(bool bWasHeadshot, int32 KillStreakCount);
 
 protected:
 	virtual void BeginPlay() override;
@@ -32,4 +36,19 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UFPSHUDWidget> HUDWidget;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Audio|Kill")
+	TObjectPtr<USoundBase> HeadshotConfirmSound;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Audio|Kill")
+	TObjectPtr<USoundBase> DoubleKillSound;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Audio|Kill")
+	TObjectPtr<USoundBase> MultiKillSound;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Audio|Kill")
+	TObjectPtr<USoundBase> QuadraKillSound;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Audio|Kill")
+	TObjectPtr<USoundBase> PentaKillSound;
 };

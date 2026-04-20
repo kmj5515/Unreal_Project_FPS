@@ -119,7 +119,12 @@ void UFPSAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbac
 
 			if (ABaseFPSCharacter* DamagedCharacter = Cast<ABaseFPSCharacter>(Data.Target.GetAvatarActor()))
 			{
-				DamagedCharacter->RecordDamageSource(EventInstigator, DamageCauser);
+				FName HitBone = NAME_None;
+				if (const FHitResult* HitResult = EffectContext.GetHitResult())
+				{
+					HitBone = HitResult->BoneName;
+				}
+				DamagedCharacter->RecordDamageSource(EventInstigator, DamageCauser, HitBone);
 			}
 
 			float RemainingDamage = LocalDamage;

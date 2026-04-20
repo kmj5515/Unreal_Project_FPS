@@ -111,6 +111,9 @@ protected:
 	void Multicast_PlayReloadMontage(UAnimMontage* MontageToPlay);
 
 	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_PlayEquipMontage(UAnimMontage* MontageToPlay);
+
+	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_OnReloadFinished();
 
 	UFUNCTION()
@@ -234,6 +237,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Animation")
 	TObjectPtr<UAnimMontage> ReloadMontage;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Animation")
+	TObjectPtr<UAnimMontage> EquipMontage;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|UI")
 	FText KillFeedWeaponName;

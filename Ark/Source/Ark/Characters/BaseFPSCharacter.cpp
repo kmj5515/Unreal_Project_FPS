@@ -13,11 +13,26 @@
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "EnhancedInputComponent.h"
+#include "Engine/DamageEvents.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "InputAction.h"
 #include "Net/UnrealNetwork.h"
 #include "CoreGlobals.h"
+
+namespace
+{
+bool IsHeadshotBone(const FName& BoneName)
+{
+	if (BoneName.IsNone())
+	{
+		return false;
+	}
+
+	const FString BoneLower = BoneName.ToString().ToLower();
+	return BoneLower.Contains(TEXT("head")) || BoneLower.Contains(TEXT("neck"));
+}
+}
 
 ABaseFPSCharacter::ABaseFPSCharacter()
 {
@@ -53,7 +68,16 @@ float ABaseFPSCharacter::TakeDamage(float DamageAmount, const FDamageEvent& Dama
 
 	if (AppliedDamage > 0.f)
 	{
-		RecordDamageSource(EventInstigator, DamageCauser);
+		FName HitBone = NAME_None;
+		if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
+		{
+			const FPointDamageEvent* PointDamageEvent = static_cast<const FPointDamageEvent*>(&DamageEvent);
+			if (PointDamageEvent)
+			{
+				HitBone = PointDamageEvent->HitInfo.BoneName;
+			}
+		}
+		RecordDamageSource(EventInstigator, DamageCauser, HitBone);
 	}
 
 	return AppliedDamage;
@@ -583,7 +607,11 @@ void ABaseFPSCharacter::HandleDeathFromAuthority()
 			KillerPlayerState = KillerController->GetPlayerState<AFPSPlayerState>();
 		}
 
-		FPSGameMode->ReportKill(KillerPlayerState, VictimPlayerState, LastDamageCauserActor.Get());
+		FPSGameMode->ReportKill(
+			KillerPlayerState,
+			VictimPlayerState,
+			LastDamageCauserActor.Get(),
+			IsHeadshotBone(LastDamageBoneName));
 	}
 
 	Multicast_OnDeath();
@@ -767,7 +795,7 @@ void ABaseFPSCharacter::BroadcastHUDAmmoDirect(int32 AmmoInMag, int32 MagSize, i
 	HUDAmmoChanged.Broadcast(AmmoInMag, MagSize, ReserveAmmo);
 }
 
-void ABaseFPSCharacter::RecordDamageSource(AController* EventInstigator, AActor* DamageCauser)
+void ABaseFPSCharacter::RecordDamageSource(AController* EventInstigator, AActor* DamageCauser, const FName& HitBone)
 {
 	if (!HasAuthority())
 	{
@@ -776,6 +804,7 @@ void ABaseFPSCharacter::RecordDamageSource(AController* EventInstigator, AActor*
 
 	LastDamageInstigatorController = EventInstigator;
 	LastDamageCauserActor = DamageCauser;
+	LastDamageBoneName = HitBone;
 }
 
 void ABaseFPSCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

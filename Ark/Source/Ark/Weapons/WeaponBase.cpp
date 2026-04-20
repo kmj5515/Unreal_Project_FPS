@@ -26,6 +26,17 @@
 
 namespace
 {
+bool IsHeadshotBone(const FName& BoneName)
+{
+	if (BoneName.IsNone())
+	{
+		return false;
+	}
+
+	const FString BoneLower = BoneName.ToString().ToLower();
+	return BoneLower.Contains(TEXT("head")) || BoneLower.Contains(TEXT("neck"));
+}
+
 USkeletalMeshComponent* ResolveBestAttachMesh(ABaseFPSCharacter* InCharacter, const FName& DesiredSocket)
 {
 	if (!InCharacter)
@@ -159,6 +170,10 @@ void AWeaponBase::ApplyWeaponDataFromAsset()
 	{
 		ReloadMontage = WeaponData->ReloadMontage;
 	}
+	if (WeaponData->EquipMontage)
+	{
+		EquipMontage = WeaponData->EquipMontage;
+	}
 
 	MagazineSize = FMath::Max(1, WeaponData->MagazineSize);
 	if (WeaponData->MaxCarryAmmo > 0)
@@ -183,6 +198,10 @@ void AWeaponBase::OnEquipped(const FName& AttachSocketName)
 	}
 
 	SetWeaponState(EFPSWeaponNetState::Equipped);
+	if (HasAuthority() && EquipMontage)
+	{
+		Multicast_PlayEquipMontage(EquipMontage);
+	}
 
 	BroadcastAmmoToOwner();
 }
@@ -846,6 +865,11 @@ void AWeaponBase::Multicast_PlayReloadMontage_Implementation(UAnimMontage* Monta
 	PlayMontageOnOwner(MontageToPlay);
 }
 
+void AWeaponBase::Multicast_PlayEquipMontage_Implementation(UAnimMontage* MontageToPlay)
+{
+	PlayMontageOnOwner(MontageToPlay);
+}
+
 void AWeaponBase::Multicast_OnReloadFinished_Implementation()
 {
 	if (GetNetMode() == NM_DedicatedServer || !OwnerCharacter || !OwnerCharacter->IsLocallyControlled())
@@ -1018,7 +1042,7 @@ bool AWeaponBase::TryApplyGasDamageFromHit(const FHitResult& Hit)
 		return false;
 	}
 
-	const float DamageMultiplier = (Hit.BoneName == FName(TEXT("head"))) ? 2.0f : 1.0f;
+	const float DamageMultiplier = IsHeadshotBone(Hit.BoneName) ? 2.0f : 1.0f;
 	SpecHandle.Data->SetSetByCallerMagnitude(DamageSetByCallerTag, Damage * DamageMultiplier);
 
 	SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);

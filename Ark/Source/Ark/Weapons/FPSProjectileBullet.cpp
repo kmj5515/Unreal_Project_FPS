@@ -11,6 +11,20 @@
 #include "GameplayEffect.h"
 #include "DrawDebugHelpers.h"
 
+namespace
+{
+bool IsHeadshotBone(const FName& BoneName)
+{
+	if (BoneName.IsNone())
+	{
+		return false;
+	}
+
+	const FString BoneLower = BoneName.ToString().ToLower();
+	return BoneLower.Contains(TEXT("head")) || BoneLower.Contains(TEXT("neck"));
+}
+}
+
 AFPSProjectileBullet::AFPSProjectileBullet()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -122,7 +136,7 @@ void AFPSProjectileBullet::OnProjectileHit(
 				const FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(DamageGameplayEffect, 1.f, EffectContext);
 				if (SpecHandle.IsValid())
 				{
-					const float DamageMultiplier = (Hit.BoneName == FName(TEXT("head"))) ? 2.0f : 1.0f;
+					const float DamageMultiplier = IsHeadshotBone(Hit.BoneName) ? 2.0f : 1.0f;
 					SpecHandle.Data->SetSetByCallerMagnitude(DamageSetByCallerTag, Damage * DamageMultiplier);
 					SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
 				}

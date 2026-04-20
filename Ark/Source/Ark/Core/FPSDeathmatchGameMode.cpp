@@ -7,9 +7,10 @@ AFPSDeathmatchGameMode::AFPSDeathmatchGameMode() = default;
 void AFPSDeathmatchGameMode::ReportKill(
 	AFPSPlayerState* KillerPlayerState,
 	AFPSPlayerState* VictimPlayerState,
-	AActor* DamageCauser)
+	AActor* DamageCauser,
+	bool bWasHeadshot)
 {
-	Super::ReportKill(KillerPlayerState, VictimPlayerState, DamageCauser);
+	Super::ReportKill(KillerPlayerState, VictimPlayerState, DamageCauser, bWasHeadshot);
 
 	if (!KillerPlayerState || !VictimPlayerState || KillerPlayerState == VictimPlayerState)
 	{

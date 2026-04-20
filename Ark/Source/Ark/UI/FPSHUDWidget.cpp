@@ -2,6 +2,7 @@
 
 #include "../Characters/BaseFPSCharacter.h"
 #include "Components/TextBlock.h"
+#include "Components/Widget.h"
 
 void UFPSHUDWidget::NativeConstruct()
 {
@@ -86,6 +87,21 @@ void UFPSHUDWidget::RefreshHealthText()
 
 void UFPSHUDWidget::RefreshAmmoText()
 {
+	const bool bHasWeapon = (MagSize > 0);
+	const ESlateVisibility AmmoVisibility = bHasWeapon ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
+	if (TextBlock_AmmoCurrent)
+	{
+		TextBlock_AmmoCurrent->SetVisibility(AmmoVisibility);
+	}
+	if (TextBlock_AmmoMax)
+	{
+		TextBlock_AmmoMax->SetVisibility(AmmoVisibility);
+	}
+	if (!bHasWeapon)
+	{
+		return;
+	}
+
 	const int32 Denominator = (ReserveAmmo > 0) ? ReserveAmmo : MagSize;
 	const FText Combined = FText::FromString(FString::Printf(TEXT("%d / %d"), AmmoInMag, Denominator));
 

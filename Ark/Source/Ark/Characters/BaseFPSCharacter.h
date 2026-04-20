@@ -91,7 +91,7 @@ public:
 	FFPSHUDAmmoChangedSignature& OnHUDAmmoChanged() { return HUDAmmoChanged; }
 
 	void BroadcastHUDAmmoDirect(int32 AmmoInMag, int32 MagSize, int32 ReserveAmmo = 0);
-	void RecordDamageSource(AController* EventInstigator, AActor* DamageCauser);
+	void RecordDamageSource(AController* EventInstigator, AActor* DamageCauser, const FName& HitBone = NAME_None);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
 	TObjectPtr<UFPSCombatComponent> CombatComponent;
@@ -231,4 +231,5 @@ protected:
 	FFPSHUDAmmoChangedSignature HUDAmmoChanged;
 	TWeakObjectPtr<AController> LastDamageInstigatorController;
 	TWeakObjectPtr<AActor> LastDamageCauserActor;
+	FName LastDamageBoneName = NAME_None;
 };

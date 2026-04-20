@@ -12,7 +12,7 @@ class ARK_API AFPSDeathmatchGameMode : public AFPSGameMode
 public:
 	AFPSDeathmatchGameMode();
 
-	virtual void ReportKill(AFPSPlayerState* KillerPlayerState, AFPSPlayerState* VictimPlayerState, AActor* DamageCauser) override;
+	virtual void ReportKill(AFPSPlayerState* KillerPlayerState, AFPSPlayerState* VictimPlayerState, AActor* DamageCauser, bool bWasHeadshot) override;
 
 protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Match|Deathmatch", meta = (ClampMin = "1"))

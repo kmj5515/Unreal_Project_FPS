@@ -5,6 +5,8 @@
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "InputMappingContext.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
 
 AFPSPlayerController::AFPSPlayerController()
 {
@@ -74,4 +76,35 @@ void AFPSPlayerController::ClientReceiveKillLog_Implementation(const FString& Ki
 	}
 
 	HUDWidget->AddKillLogEntry(KillerName, VictimName, WeaponName);
+}
+
+void AFPSPlayerController::ClientNotifyKillEvent_Implementation(bool bWasHeadshot, int32 KillStreakCount)
+{
+	if (bWasHeadshot && HeadshotConfirmSound)
+	{
+		UGameplayStatics::PlaySound2D(this, HeadshotConfirmSound);
+	}
+
+	USoundBase* StreakSound = nullptr;
+	if (KillStreakCount >= 5)
+	{
+		StreakSound = PentaKillSound;
+	}
+	else if (KillStreakCount == 4)
+	{
+		StreakSound = QuadraKillSound;
+	}
+	else if (KillStreakCount == 3)
+	{
+		StreakSound = MultiKillSound;
+	}
+	else if (KillStreakCount == 2)
+	{
+		StreakSound = DoubleKillSound;
+	}
+
+	if (StreakSound)
+	{
+		UGameplayStatics::PlaySound2D(this, StreakSound);
+	}
 }

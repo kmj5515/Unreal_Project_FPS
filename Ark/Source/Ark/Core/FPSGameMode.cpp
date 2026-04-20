@@ -14,7 +14,7 @@ AFPSGameMode::AFPSGameMode()
 	HUDClass = AFPSGameHUD::StaticClass();
 }
 
-void AFPSGameMode::ReportKill(AFPSPlayerState* KillerPlayerState, AFPSPlayerState* VictimPlayerState, AActor* DamageCauser)
+void AFPSGameMode::ReportKill(AFPSPlayerState* KillerPlayerState, AFPSPlayerState* VictimPlayerState, AActor* DamageCauser, bool bWasHeadshot)
 {
 	if (!VictimPlayerState)
 	{
@@ -42,5 +42,45 @@ void AFPSGameMode::ReportKill(AFPSPlayerState* KillerPlayerState, AFPSPlayerStat
 		{
 			FPSPlayerController->ClientReceiveKillLog(KillerName, VictimName, WeaponName);
 		}
+	}
+
+	if (KillerPlayerState && KillerPlayerState != VictimPlayerState)
+	{
+		const int32 StreakCount = RegisterKillAndGetStreak(KillerPlayerState);
+		NotifyKiller(KillerPlayerState, bWasHeadshot, StreakCount);
+	}
+}
+
+int32 AFPSGameMode::RegisterKillAndGetStreak(AFPSPlayerState* KillerPlayerState)
+{
+	if (!KillerPlayerState || !GetWorld())
+	{
+		return 0;
+	}
+
+	const float Now = GetWorld()->GetTimeSeconds();
+	FKillStreakData& Data = KillStreakByPlayer.FindOrAdd(KillerPlayerState);
+	if ((Now - Data.LastKillTime) <= MultiKillWindowSeconds)
+	{
+		++Data.Count;
+	}
+	else
+	{
+		Data.Count = 1;
+	}
+	Data.LastKillTime = Now;
+	return Data.Count;
+}
+
+void AFPSGameMode::NotifyKiller(AFPSPlayerState* KillerPlayerState, bool bWasHeadshot, int32 StreakCount)
+{
+	if (!KillerPlayerState)
+	{
+		return;
+	}
+
+	if (AFPSPlayerController* KillerPC = Cast<AFPSPlayerController>(KillerPlayerState->GetPlayerController()))
+	{
+		KillerPC->ClientNotifyKillEvent(bWasHeadshot, StreakCount);
 	}
 }
