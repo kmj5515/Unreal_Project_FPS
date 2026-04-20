@@ -119,6 +119,25 @@ void UFPSAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbac
 
 			if (ABaseFPSCharacter* DamagedCharacter = Cast<ABaseFPSCharacter>(Data.Target.GetAvatarActor()))
 			{
+				if (!EventInstigator && DamageCauser)
+				{
+					if (APawn* CauserPawn = Cast<APawn>(DamageCauser))
+					{
+						EventInstigator = CauserPawn->GetController();
+					}
+					else if (AActor* CauserOwner = DamageCauser->GetOwner())
+					{
+						if (APawn* OwnerPawn = Cast<APawn>(CauserOwner))
+						{
+							EventInstigator = OwnerPawn->GetController();
+						}
+						else if (AController* OwnerController = Cast<AController>(CauserOwner))
+						{
+							EventInstigator = OwnerController;
+						}
+					}
+				}
+
 				FName HitBone = NAME_None;
 				if (const FHitResult* HitResult = EffectContext.GetHitResult())
 				{

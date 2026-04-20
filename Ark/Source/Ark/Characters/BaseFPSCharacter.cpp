@@ -22,7 +22,7 @@
 
 namespace
 {
-bool IsHeadshotBone(const FName& BoneName)
+bool IsHeadshotBone_Character(const FName& BoneName)
 {
 	if (BoneName.IsNone())
 	{
@@ -611,7 +611,7 @@ void ABaseFPSCharacter::HandleDeathFromAuthority()
 			KillerPlayerState,
 			VictimPlayerState,
 			LastDamageCauserActor.Get(),
-			IsHeadshotBone(LastDamageBoneName));
+			IsHeadshotBone_Character(LastDamageBoneName));
 	}
 
 	Multicast_OnDeath();

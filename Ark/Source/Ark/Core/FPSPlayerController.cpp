@@ -80,6 +80,11 @@ void AFPSPlayerController::ClientReceiveKillLog_Implementation(const FString& Ki
 
 void AFPSPlayerController::ClientNotifyKillEvent_Implementation(bool bWasHeadshot, int32 KillStreakCount)
 {
+	if (HUDWidget)
+	{
+		HUDWidget->ShowKillStreakAnnouncement(KillStreakCount);
+	}
+
 	if (bWasHeadshot && HeadshotConfirmSound)
 	{
 		UGameplayStatics::PlaySound2D(this, HeadshotConfirmSound);

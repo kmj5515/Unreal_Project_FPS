@@ -19,7 +19,7 @@ public:
 
 protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Match|KillStreak", meta = (ClampMin = "1.0"))
-	float MultiKillWindowSeconds = 5.0f;
+	float MultiKillWindowSeconds = 10.0f;
 
 private:
 	struct FKillStreakData

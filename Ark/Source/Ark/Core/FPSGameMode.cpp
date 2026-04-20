@@ -79,8 +79,18 @@ void AFPSGameMode::NotifyKiller(AFPSPlayerState* KillerPlayerState, bool bWasHea
 		return;
 	}
 
-	if (AFPSPlayerController* KillerPC = Cast<AFPSPlayerController>(KillerPlayerState->GetPlayerController()))
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
-		KillerPC->ClientNotifyKillEvent(bWasHeadshot, StreakCount);
+		AFPSPlayerController* CandidatePC = Cast<AFPSPlayerController>(It->Get());
+		if (!CandidatePC)
+		{
+			continue;
+		}
+
+		if (CandidatePC->PlayerState == KillerPlayerState)
+		{
+			CandidatePC->ClientNotifyKillEvent(bWasHeadshot, StreakCount);
+			return;
+		}
 	}
 }

@@ -26,7 +26,7 @@
 
 namespace
 {
-bool IsHeadshotBone(const FName& BoneName)
+bool IsHeadshotBone_Weapon(const FName& BoneName)
 {
 	if (BoneName.IsNone())
 	{
@@ -1042,7 +1042,7 @@ bool AWeaponBase::TryApplyGasDamageFromHit(const FHitResult& Hit)
 		return false;
 	}
 
-	const float DamageMultiplier = IsHeadshotBone(Hit.BoneName) ? 2.0f : 1.0f;
+	const float DamageMultiplier = IsHeadshotBone_Weapon(Hit.BoneName) ? 2.0f : 1.0f;
 	SpecHandle.Data->SetSetByCallerMagnitude(DamageSetByCallerTag, Damage * DamageMultiplier);
 
 	SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);

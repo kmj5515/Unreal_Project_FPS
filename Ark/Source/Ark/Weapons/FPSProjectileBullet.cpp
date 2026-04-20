@@ -13,7 +13,7 @@
 
 namespace
 {
-bool IsHeadshotBone(const FName& BoneName)
+bool IsHeadshotBone_Projectile(const FName& BoneName)
 {
 	if (BoneName.IsNone())
 	{
@@ -136,7 +136,7 @@ void AFPSProjectileBullet::OnProjectileHit(
 				const FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(DamageGameplayEffect, 1.f, EffectContext);
 				if (SpecHandle.IsValid())
 				{
-					const float DamageMultiplier = IsHeadshotBone(Hit.BoneName) ? 2.0f : 1.0f;
+					const float DamageMultiplier = IsHeadshotBone_Projectile(Hit.BoneName) ? 2.0f : 1.0f;
 					SpecHandle.Data->SetSetByCallerMagnitude(DamageSetByCallerTag, Damage * DamageMultiplier);
 					SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
 				}

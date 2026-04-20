@@ -10,10 +10,16 @@ void UFPSHUDWidget::NativeConstruct()
 	RefreshHealthText();
 	RefreshAmmoText();
 	RefreshKillFeedText();
+	RefreshKillStreakText();
 }
 
 void UFPSHUDWidget::NativeDestruct()
 {
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(KillStreakClearTimerHandle);
+	}
+
 	UnbindCharacterDelegates();
 	Super::NativeDestruct();
 }
@@ -58,8 +64,7 @@ void UFPSHUDWidget::AddKillLogEntry(const FString& KillerName, const FString& Vi
 {
 	const FString SanitizedKiller = KillerName.IsEmpty() ? TEXT("Unknown") : KillerName;
 	const FString SanitizedVictim = VictimName.IsEmpty() ? TEXT("Unknown") : VictimName;
-	const FString SanitizedWeapon = WeaponName.IsEmpty() ? TEXT("Unknown") : WeaponName;
-	const FString Entry = FString::Printf(TEXT("%s -> %s (%s)"), *SanitizedKiller, *SanitizedVictim, *SanitizedWeapon);
+	const FString Entry = FString::Printf(TEXT("%s > %s"), *SanitizedKiller, *SanitizedVictim);
 
 	KillFeedEntries.Insert(Entry, 0);
 
@@ -70,6 +75,38 @@ void UFPSHUDWidget::AddKillLogEntry(const FString& KillerName, const FString& Vi
 	}
 
 	RefreshKillFeedText();
+}
+
+void UFPSHUDWidget::ShowKillStreakAnnouncement(int32 KillStreakCount)
+{
+	FString NewText;
+	int32 NewPriority = 0;
+	float NewDuration = 0.f;
+	if (!ResolveKillStreakPresentation(KillStreakCount, NewText, NewPriority, NewDuration))
+	{
+		return;
+	}
+
+	// Do not downgrade an on-screen higher tier announcement.
+	if (ActiveKillStreakPriority > NewPriority)
+	{
+		return;
+	}
+
+	ActiveKillStreakPriority = NewPriority;
+	CurrentKillStreakText = NewText;
+	RefreshKillStreakText();
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(KillStreakClearTimerHandle);
+		World->GetTimerManager().SetTimer(
+			KillStreakClearTimerHandle,
+			this,
+			&UFPSHUDWidget::ClearKillStreakAnnouncement,
+			FMath::Max(0.1f, NewDuration),
+			false);
+	}
 }
 
 void UFPSHUDWidget::RefreshHealthText()
@@ -138,6 +175,69 @@ void UFPSHUDWidget::RefreshKillFeedText()
 	}
 
 	TextBlock_KillFeed->SetText(FText::FromString(CombinedText));
+}
+
+void UFPSHUDWidget::ClearKillStreakAnnouncement()
+{
+	ActiveKillStreakPriority = 0;
+	CurrentKillStreakText.Empty();
+	RefreshKillStreakText();
+}
+
+void UFPSHUDWidget::RefreshKillStreakText()
+{
+	if (!TextBlock_KillStreak)
+	{
+		return;
+	}
+
+	if (CurrentKillStreakText.IsEmpty())
+	{
+		TextBlock_KillStreak->SetVisibility(ESlateVisibility::Collapsed);
+		TextBlock_KillStreak->SetText(FText::GetEmpty());
+		return;
+	}
+
+	TextBlock_KillStreak->SetVisibility(ESlateVisibility::Visible);
+	TextBlock_KillStreak->SetText(FText::FromString(CurrentKillStreakText));
+}
+
+bool UFPSHUDWidget::ResolveKillStreakPresentation(int32 KillStreakCount, FString& OutText, int32& OutPriority, float& OutDuration) const
+{
+	OutText.Empty();
+	OutPriority = 0;
+	OutDuration = 0.f;
+
+	if (KillStreakCount >= 5)
+	{
+		OutText = TEXT("PENTA KILL");
+		OutPriority = 5;
+		OutDuration = PentaKillDuration;
+		return true;
+	}
+	if (KillStreakCount == 4)
+	{
+		OutText = TEXT("QUADRA KILL");
+		OutPriority = 4;
+		OutDuration = QuadraKillDuration;
+		return true;
+	}
+	if (KillStreakCount == 3)
+	{
+		OutText = TEXT("MULTI KILL");
+		OutPriority = 3;
+		OutDuration = MultiKillDuration;
+		return true;
+	}
+	if (KillStreakCount == 2)
+	{
+		OutText = TEXT("DOUBLE KILL");
+		OutPriority = 2;
+		OutDuration = DoubleKillDuration;
+		return true;
+	}
+
+	return false;
 }
 
 void UFPSHUDWidget::HandleHealthChanged(float Current, float Max)
