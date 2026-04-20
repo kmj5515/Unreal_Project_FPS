@@ -2,6 +2,7 @@
 
 #include "../Core/FPSPlayerController.h"
 #include "Components/CheckBox.h"
+#include "Components/Slider.h"
 #include "Components/TextBlock.h"
 
 void UFPSDebugToolWidget::NativeConstruct()
@@ -19,6 +20,10 @@ void UFPSDebugToolWidget::NativeConstruct()
 	if (CheckBox_DpsMeasure)
 	{
 		CheckBox_DpsMeasure->OnCheckStateChanged.AddDynamic(this, &UFPSDebugToolWidget::HandleDpsCheckStateChanged);
+	}
+	if (CheckBox_InfiniteAmmo)
+	{
+		CheckBox_InfiniteAmmo->OnCheckStateChanged.AddDynamic(this, &UFPSDebugToolWidget::HandleInfiniteAmmoCheckStateChanged);
 	}
 
 	RefreshFromController();
@@ -39,6 +44,10 @@ void UFPSDebugToolWidget::NativeDestruct()
 	if (CheckBox_DpsMeasure)
 	{
 		CheckBox_DpsMeasure->OnCheckStateChanged.RemoveDynamic(this, &UFPSDebugToolWidget::HandleDpsCheckStateChanged);
+	}
+	if (CheckBox_InfiniteAmmo)
+	{
+		CheckBox_InfiniteAmmo->OnCheckStateChanged.RemoveDynamic(this, &UFPSDebugToolWidget::HandleInfiniteAmmoCheckStateChanged);
 	}
 
 	Super::NativeDestruct();
@@ -81,6 +90,22 @@ void UFPSDebugToolWidget::HandleDpsCheckStateChanged(bool bChecked)
 	}
 }
 
+void UFPSDebugToolWidget::HandleInfiniteAmmoCheckStateChanged(bool bChecked)
+{
+	if (BoundController)
+	{
+		BoundController->SetInfiniteAmmoEnabled(bChecked);
+	}
+
+	if (Text_InfiniteAmmoState)
+	{
+		Text_InfiniteAmmoState->SetText(
+			bChecked
+				? FText::FromString(TEXT("Infinite Ammo: ON"))
+				: FText::FromString(TEXT("Infinite Ammo: OFF")));
+	}
+}
+
 void UFPSDebugToolWidget::RefreshFromController()
 {
 	if (!BoundController)
@@ -99,6 +124,17 @@ void UFPSDebugToolWidget::RefreshFromController()
 	if (CheckBox_DpsMeasure)
 	{
 		CheckBox_DpsMeasure->SetIsChecked(BoundController->IsDpsMeasuring());
+	}
+	if (CheckBox_InfiniteAmmo)
+	{
+		CheckBox_InfiniteAmmo->SetIsChecked(BoundController->IsInfiniteAmmoEnabled());
+	}
+	if (Text_InfiniteAmmoState)
+	{
+		Text_InfiniteAmmoState->SetText(
+			BoundController->IsInfiniteAmmoEnabled()
+				? FText::FromString(TEXT("Infinite Ammo: ON"))
+				: FText::FromString(TEXT("Infinite Ammo: OFF")));
 	}
 }
 
@@ -164,6 +200,21 @@ void UFPSDebugToolWidget::RefreshWeaponDebugText()
 	{
 		Text_WeaponSpreadValue->SetText(
 			FText::FromString(FString::Printf(TEXT("SpreadDeg: %.2f"), CurrentWeaponSpreadDeg)));
+	}
+
+	if (Slider_WeaponSpread)
+	{
+		const float CurrentSliderValue = Slider_WeaponSpread->GetValue();
+		if (!FMath::IsNearlyEqual(CurrentSliderValue, CurrentWeaponSpreadDeg, KINDA_SMALL_NUMBER))
+		{
+			Slider_WeaponSpread->SetValue(CurrentWeaponSpreadDeg);
+		}
+	}
+
+	if (Text_SpreadSliderValue)
+	{
+		Text_SpreadSliderValue->SetText(
+			FText::FromString(FString::Printf(TEXT("Spread: %.2f deg"), CurrentWeaponSpreadDeg)));
 	}
 
 	if (Text_WeaponAmmoValue)

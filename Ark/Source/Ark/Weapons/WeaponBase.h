@@ -73,6 +73,8 @@ public:
 	float GetDamage() const { return Damage; }
 
 	void SetTraceDebugEnabled(bool bEnabled) { bDebugDrawTrace = bEnabled; }
+	void SetInfiniteAmmoEnabled(bool bEnabled) { bInfiniteAmmoDebug = bEnabled; }
+	bool IsInfiniteAmmoEnabled() const { return bInfiniteAmmoDebug; }
 	void DebugSetBulletSpreadPerCrosshairDeg(float NewSpreadDeg);
 	void DebugSetAmmoState(int32 NewAmmoInMagazine, int32 NewMagazineSize, int32 NewMaxCarryAmmo);
 
@@ -274,6 +276,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Debug")
 	bool bDebugDrawTrace = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Debug")
+	bool bInfiniteAmmoDebug = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Debug", meta = (ClampMin = "0.0"))
 	float DebugDrawDuration = 1.0f;

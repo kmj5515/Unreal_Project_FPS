@@ -44,6 +44,7 @@ void UFPSCombatComponent::BeginPlay()
 	{
 		SpawnDefaultLoadout();
 		ApplyTraceDebugStateToWeapons();
+		ApplyInfiniteAmmoStateToWeapons();
 		ApplyCurrentWeaponVisibility();
 	}
 }
@@ -174,6 +175,18 @@ void UFPSCombatComponent::ApplyTraceDebugStateToWeapons() const
 		if (Weapon)
 		{
 			Weapon->SetTraceDebugEnabled(bTraceDebugEnabled);
+		}
+	}
+}
+
+void UFPSCombatComponent::ApplyInfiniteAmmoStateToWeapons() const
+{
+	AWeaponBase* AllWeapons[] = { PrimaryWeapon, SecondaryWeapon, MeleeWeapon };
+	for (AWeaponBase* Weapon : AllWeapons)
+	{
+		if (Weapon)
+		{
+			Weapon->SetInfiniteAmmoEnabled(bInfiniteAmmoEnabled);
 		}
 	}
 }
@@ -378,6 +391,23 @@ void UFPSCombatComponent::SetDpsMeasureEnabled(bool bEnabled)
 
 	bDpsMeasuring = bEnabled;
 	ResetDpsStats();
+}
+
+void UFPSCombatComponent::SetInfiniteAmmoEnabled(bool bEnabled)
+{
+	if (!GetOwner())
+	{
+		return;
+	}
+
+	if (!GetOwner()->HasAuthority())
+	{
+		ServerSetInfiniteAmmoEnabled(bEnabled);
+		return;
+	}
+
+	bInfiniteAmmoEnabled = bEnabled;
+	ApplyInfiniteAmmoStateToWeapons();
 }
 
 void UFPSCombatComponent::ResetDpsStats()
@@ -631,6 +661,11 @@ void UFPSCombatComponent::ServerSetTraceDebugEnabled_Implementation(bool bEnable
 void UFPSCombatComponent::ServerSetDpsMeasureEnabled_Implementation(bool bEnabled)
 {
 	SetDpsMeasureEnabled(bEnabled);
+}
+
+void UFPSCombatComponent::ServerSetInfiniteAmmoEnabled_Implementation(bool bEnabled)
+{
+	SetInfiniteAmmoEnabled(bEnabled);
 }
 
 void UFPSCombatComponent::ServerSetCurrentWeaponSpread_Implementation(float NewSpreadDeg)

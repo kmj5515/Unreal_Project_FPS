@@ -6,6 +6,7 @@
 
 class AFPSPlayerController;
 class UCheckBox;
+class USlider;
 class UTextBlock;
 
 UCLASS()
@@ -37,6 +38,9 @@ protected:
 	UFUNCTION()
 	void HandleDpsCheckStateChanged(bool bChecked);
 
+	UFUNCTION()
+	void HandleInfiniteAmmoCheckStateChanged(bool bChecked);
+
 	void RefreshFromController();
 	void RefreshDpsText();
 	void RefreshWeaponDebugText();
@@ -51,6 +55,9 @@ protected:
 	TObjectPtr<UCheckBox> CheckBox_DpsMeasure;
 
 	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UCheckBox> CheckBox_InfiniteAmmo;
+
+	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> Text_DpsValue;
 
 	UPROPERTY(meta = (BindWidgetOptional))
@@ -60,7 +67,16 @@ protected:
 	TObjectPtr<UTextBlock> Text_WeaponSpreadValue;
 
 	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<USlider> Slider_WeaponSpread;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> Text_SpreadSliderValue;
+
+	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> Text_WeaponAmmoValue;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> Text_InfiniteAmmoState;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Debug")
 	float DpsValue = 0.f;

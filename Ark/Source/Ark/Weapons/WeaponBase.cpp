@@ -458,6 +458,12 @@ void AWeaponBase::FireOnce()
 		return;
 	}
 
+	if (bInfiniteAmmoDebug && AmmoInMagazine <= 0)
+	{
+		AmmoInMagazine = MagazineSize;
+		BroadcastAmmoToOwner();
+	}
+
 	if (AmmoInMagazine <= 0)
 	{
 		StartReload();
@@ -476,8 +482,11 @@ void AWeaponBase::FireOnce()
 
 	Multicast_PlayMuzzleFlash();
 	Multicast_PlayFireMontage(FireMontage);
-	AmmoInMagazine = FMath::Max(0, AmmoInMagazine - 1);
-	BroadcastAmmoToOwner();
+	if (!bInfiniteAmmoDebug)
+	{
+		AmmoInMagazine = FMath::Max(0, AmmoInMagazine - 1);
+		BroadcastAmmoToOwner();
+	}
 
 	FHitResult Hit;
 	if (FireMode == EFPSFireMode::Projectile)

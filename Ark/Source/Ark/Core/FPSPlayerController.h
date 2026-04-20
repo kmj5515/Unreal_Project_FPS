@@ -36,6 +36,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Debug")
 	void SetDpsMeasureEnabled(bool bEnabled);
 
+	UFUNCTION(BlueprintCallable, Category = "Debug")
+	void SetInfiniteAmmoEnabled(bool bEnabled);
+
 	UFUNCTION(BlueprintPure, Category = "Debug")
 	bool IsHitboxDebugEnabled() const { return bHitboxDebugEnabled; }
 
@@ -44,6 +47,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Debug")
 	bool IsDpsMeasuring() const { return bDpsMeasuring; }
+
+	UFUNCTION(BlueprintPure, Category = "Debug")
+	bool IsInfiniteAmmoEnabled() const { return bInfiniteAmmoEnabled; }
 
 	UFUNCTION(BlueprintCallable, Category = "Debug")
 	void GetDpsStats(int32& OutShotCount, float& OutTotalDamage, float& OutElapsedSeconds, float& OutDps) const;
@@ -112,4 +118,5 @@ protected:
 	bool bHitboxDebugEnabled = false;
 	bool bTraceDebugEnabled = false;
 	bool bDpsMeasuring = false;
+	bool bInfiniteAmmoEnabled = false;
 };

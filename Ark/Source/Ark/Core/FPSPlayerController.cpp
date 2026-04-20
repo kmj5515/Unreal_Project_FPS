@@ -205,6 +205,18 @@ void AFPSPlayerController::SetDpsMeasureEnabled(bool bEnabled)
 	}
 }
 
+void AFPSPlayerController::SetInfiniteAmmoEnabled(bool bEnabled)
+{
+	bInfiniteAmmoEnabled = bEnabled;
+	if (ABaseFPSCharacter* FPSChar = GetPawn<ABaseFPSCharacter>())
+	{
+		if (FPSChar->CombatComponent)
+		{
+			FPSChar->CombatComponent->SetInfiniteAmmoEnabled(bInfiniteAmmoEnabled);
+		}
+	}
+}
+
 void AFPSPlayerController::GetDpsStats(int32& OutShotCount, float& OutTotalDamage, float& OutElapsedSeconds, float& OutDps) const
 {
 	OutShotCount = 0;
